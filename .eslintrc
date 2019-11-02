@@ -1,0 +1,13 @@
+{
+	"extends": [
+		"@exe-boss/eslint-config/es3"
+	],
+
+	"env": {
+		"commonjs": true
+	},
+
+	"parserOptions": {
+		"ecmaVersion": 3
+	}
+}
