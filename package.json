@@ -1,0 +1,23 @@
+{
+	"name": "iterator-helpers",
+	"version": "0.0.0",
+	"description": "An ES-Shim API compliant polyfill for the Iterator Helpers proposal.",
+	"author": "ExE Boss (https://ExE-Boss.tech)",
+	"license": "MIT",
+	"main": "index.js",
+
+	"keywords": [
+		"iterator",
+		"iterable",
+		"es-shim API"
+	],
+
+	"homepage": "https://github.com/ExE-Boss/Iterator-Helpers#readme",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/ExE-Boss/Iterator-Helpers.git"
+	},
+	"bugs": {
+		"url": "https://github.com/ExE-Boss/Iterator-Helpers/issues"
+	}
+}
