@@ -1,3 +1,19 @@
 {
-	"trailingComma": "none"
+	"trailingComma": "none",
+	"proseWrap": "always",
+
+	"overrides": [
+		{
+			"files": ["*.ts"],
+			"options": {
+				"trailingComma": "es5"
+			}
+		},
+		{
+			"files": ["*.d.ts"],
+			"options": {
+				"printWidth": 120
+			}
+		}
+	]
 }

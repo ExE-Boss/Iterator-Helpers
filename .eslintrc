@@ -4,10 +4,39 @@
 	],
 
 	"env": {
-		"commonjs": true
+		"commonjs": true,
+		"es6": true
 	},
 
 	"parserOptions": {
 		"ecmaVersion": 3
-	}
+	},
+
+	"rules": {
+		"consistent-this": "off",
+		"quote-props": [
+			"error",
+			"as-needed",
+			{
+				"keywords": true,
+				"unnecessary": false,
+				"numbers": false
+			}
+		]
+	},
+
+	"overrides": [
+		{
+			"files": [
+				"implementation.js"
+			],
+			"rules": {
+				"consistent-return": "off",
+				"no-constant-condition": "off",
+				"no-fallthrough": "off",
+				"no-sparse-arrays": "off",
+				"no-unused-vars": "off"
+			}
+		}
+	]
 }

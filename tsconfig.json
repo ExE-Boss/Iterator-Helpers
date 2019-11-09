@@ -1,0 +1,16 @@
+{
+	"extends": "./tsconfig.base.json",
+	"compilerOptions": {
+		"allowJs": true,
+		"checkJs": true,
+		"noEmit": true
+	},
+	"include": [
+		"*.ts",
+		"*.js"
+	],
+	"exclude": [
+		// Already type checked during compilation:
+		"implementation.js"
+	]
+}

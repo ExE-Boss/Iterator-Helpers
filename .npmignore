@@ -1,0 +1,5 @@
+# Include compiled code:
+!/implementation.js
+
+# Exclude TypeScript sources:
+/src

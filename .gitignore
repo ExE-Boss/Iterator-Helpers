@@ -2,6 +2,9 @@
 /**/node_modules/**
 /node_modules/**
 
+# Compiled code:
+/implementation.js
+
 # Unwanted crap
 .DS_Store
 .DS_Store?

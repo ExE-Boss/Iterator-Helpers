@@ -1,0 +1,17 @@
+{
+	"compilerOptions": {
+		"module": "commonjs",
+		"target": "es3",
+		"lib": ["esnext"],
+		"strictBindCallApply": true,
+		"strictFunctionTypes": true,
+		"strictNullChecks": true,
+		"noImplicitAny": true,
+		"noImplicitThis": true,
+		"declaration": false,
+
+		"noEmitHelpers": true,
+		"allowSyntheticDefaultImports": false,
+		"esModuleInterop": false
+	}
+}
