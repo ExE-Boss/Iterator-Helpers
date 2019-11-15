@@ -870,14 +870,21 @@ const Iterator: typeof $IteratorPolyfill = ((): any => {
 	}
 
 	if ($IteratorProto) {
-		$setProto(Iterator.prototype, $IteratorProto);
+		$setProto!(Iterator.prototype, $IteratorProto);
+
+		ES2018.CreateMethodProperty(
+			Iterator.prototype,
+			$iterator!,
+			// @ts-ignore
+			$IteratorProto[$iterator!]
+		);
 	} else if ($iterator) {
 		// This probably can't occur in a real environment
 
 		ES2018.CreateMethodProperty(
 			Iterator.prototype,
 			$iterator,
-			function anonymous(this: any) {
+			function $iterator(this: any) {
 				return this;
 			}
 		);
@@ -1653,7 +1660,14 @@ const AsyncIterator: typeof $IteratorPolyfill = ((): any => {
 	}
 
 	if ($AsyncIteratorProto) {
-		$setProto(Iterator.prototype, $AsyncIteratorProto);
+		$setProto!(AsyncIterator.prototype, $AsyncIteratorProto);
+
+		ES2018.CreateMethodProperty(
+			AsyncIterator.prototype,
+			$asyncIterator!,
+			// @ts-ignore
+			$AsyncIteratorProto[$asyncIterator!]
+		);
 	} else if ($asyncIterator) {
 		// This can only occur in an ES2015-ES2017 environment where
 		// a polyfill installs Symbol.asyncIterator before ES-Abstract
@@ -1662,7 +1676,7 @@ const AsyncIterator: typeof $IteratorPolyfill = ((): any => {
 		ES2018.CreateMethodProperty(
 			AsyncIterator.prototype,
 			$asyncIterator,
-			function anonymous(this: any) {
+			function $asyncIterator(this: any) {
 				return this;
 			}
 		);
@@ -1680,17 +1694,6 @@ const AsyncIterator: typeof $IteratorPolyfill = ((): any => {
 
 	return AsyncIterator;
 })();
-
-if ($toStringTag) {
-	Object.defineProperty(AsyncIterator.prototype, $toStringTag, {
-		value: "Async Iterator",
-		configurable: true,
-	});
-}
-
-if ($AsyncIteratorProto) {
-	$setProto(AsyncIterator.prototype, $AsyncIteratorProto);
-}
 
 export { AsyncIterator };
 

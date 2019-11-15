@@ -17,10 +17,6 @@ and limitations under the License.
 // Modified from tslib (https://www.npmjs.com/package/tslib)
 /* eslint-disable */
 
-var GetIntrinsic = require("es-abstract/GetIntrinsic");
-/** @type {typeof Symbol.asyncIterator | undefined} */
-var $asyncIterator = (GetIntrinsic("%Symbol.asyncIterator%", true));
-
 var $setProto = require("es-abstract/helpers/setProto");
 var assign = require("es-abstract/helpers/assign");
 
@@ -38,13 +34,14 @@ exports.__generator = function __generator(thisArg, body) {
 	return (
 		// prettier-ignore
 		(g = { next: verb(0), "throw": verb(1), "return": verb(2) }),
-		getPolyfill().Iterator.prototype && $setProto
-			? $setProto(g, getPolyfill().Iterator.prototype)
-			: assign(g, getPolyfill().Iterator.prototype),
 		typeof Symbol === "function" &&
 			(g[Symbol.iterator] = function() {
 				return this;
 			}),
+		getPolyfill().Iterator.prototype &&
+			($setProto
+				? $setProto(g, getPolyfill().Iterator.prototype)
+				: assign(g, getPolyfill().Iterator.prototype)),
 		g
 	);
 	function verb(n) { return function (v) { return step([n, v]); }; }
@@ -95,12 +92,13 @@ exports.__asyncGenerator = function(thisArg, _arguments, generator) {
 		verb("next"),
 		verb("throw"),
 		verb("return"),
-		getPolyfill().AsyncIterator.prototype && $setProto
-			? $setProto(g, getPolyfill().AsyncIterator.prototype)
-			: assign(g, getPolyfill().AsyncIterator.prototype),
 		(i[Symbol.asyncIterator] = function() {
 			return this;
 		}),
+		getPolyfill().AsyncIterator.prototype &&
+			($setProto
+				? $setProto(g, getPolyfill().AsyncIterator.prototype)
+				: assign(g, getPolyfill().AsyncIterator.prototype)),
 		i
 	);
     function verb(n) { if (g[n]) i[n] = function (v) { return new Promise(function (a, b) { q.push([n, v, a, b]) > 1 || resume(n, v); }); }; }
