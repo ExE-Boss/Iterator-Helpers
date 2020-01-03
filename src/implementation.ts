@@ -1,3 +1,4 @@
+/// <reference lib="es2018"/>
 "use strict";
 declare function require<T = any>(id: string): T;
 
@@ -44,8 +45,15 @@ const $toStringTag: typeof Symbol.toStringTag | undefined = (GetIntrinsic("%Symb
 const $RangeError = GetIntrinsic("%RangeError%");
 const $TypeError = GetIntrinsic("%TypeError%");
 
+/** @type {{
+	(): Promise<void>;
+	<T>(value: T | PromiseLike<T>): Promise<T>;
+}} */
 // prettier-ignore
-const $NewPromise = GetIntrinsic("%Promise_resolve%").bind(GetIntrinsic("%Promise%"));
+const $NewPromise: {
+	(): Promise<void>;
+	<T>(value: T | PromiseLike<T>): Promise<T>;
+} = GetIntrinsic("%Promise_resolve%").bind(GetIntrinsic("%Promise%"));
 
 /** @type {undefined} */
 var undefined: undefined;
@@ -161,7 +169,7 @@ function GetIterator<
 	}
 
 	/** @type {I} */
-	var iterator: I = ES2018.Call<(this: O) => I, O, []>(actualMethod, obj);
+	var iterator: I = ES2018.Call<(this: O) => I>(actualMethod, obj);
 	if (ES2018.Type(iterator) !== "Object") {
 		throw new $TypeError("iterator must return an object");
 	}
@@ -191,10 +199,13 @@ function AsyncIteratorClose<T>(
 		  >,
 	completion: () => T | PromiseLike<T>
 ): Promise<T> {
+	/** @type {typeof completion | null} */
 	let completionThunk: typeof completion | null;
+	/** @type {Iterator<any, any, unknown> | AsyncIterator<any, any, unknown>} */
 	var iterator:
-		| Iterator<any, any, undefined>
-		| AsyncIterator<any, any, undefined>;
+		| Iterator<any, any, unknown>
+		| AsyncIterator<any, any, unknown>;
+	/** @type {(value?: any) => IteratorResult<any, any> | Promise<IteratorResult<any, any>>} */
 	var iteratorReturn: (
 		value?: any
 	) => IteratorResult<any, any> | Promise<IteratorResult<any, any>>;
@@ -268,8 +279,8 @@ function GetIteratorDirect<O extends object>(
 /**
  * @template {obj} O
  * @param {O} obj
- * @return {O extends Iterator<any, any, any> | AsyncIterator<any, any, any> ? O : never}
- */
+ * @return {O extends Iterator<any, any, any> | AsyncIterator<any, any, any>
+	? O : never} */
 function GetIteratorDirect<O extends object>(
 	obj: O
 ): O extends Iterator<any, any, any> | AsyncIterator<any, any, any>
@@ -696,11 +707,10 @@ const Iterator: typeof $IteratorPolyfill = ((): any => {
 
 				let result: any;
 				try {
-					result = ES2018.Call<typeof reducer, undefined, [U, T]>(
-						reducer,
-						undefined,
-						[accumulator, value]
-					);
+					result = ES2018.Call<typeof reducer>(reducer, undefined, [
+						accumulator,
+						value,
+					]);
 				} catch (e) {
 					return ES2018.IteratorClose(iterated, () => {
 						throw e;
@@ -1291,9 +1301,8 @@ const AsyncIterator: typeof $IteratorPolyfill = ((): any => {
 				}
 
 				/** @type {IteratorRecord<AsyncIterator<U>>} */
-				let innerIterator: IteratorRecord<
-					AsyncIterator<U>
-				> = GetIterator(mapped, "async");
+				// prettier-ignore
+				let innerIterator: IteratorRecord<AsyncIterator<U>> = GetIterator(mapped, "async");
 
 				/** @type {IteratorResult<U>} */
 				let innerNext: IteratorResult<U>;
@@ -1336,10 +1345,7 @@ const AsyncIterator: typeof $IteratorPolyfill = ((): any => {
 					if (_args.length < 2) {
 						return $NewPromise()
 							.then(() => IteratorNext(iterated))
-							.then((
-								/** @type {IteratorResult<any>} */
-								next: IteratorResult<any>
-							) => {
+							.then((next: IteratorResult<any>) => {
 								if (ES2018.IteratorComplete(next)) {
 									throw new $TypeError(
 										"reduce of empty iterator with no initial value"
@@ -1351,41 +1357,47 @@ const AsyncIterator: typeof $IteratorPolyfill = ((): any => {
 						return initialValue;
 					}
 				})
-				.then(function _recursive(accumulator: U): Promise<U> {
-					return $NewPromise()
-						.then(() => IteratorNext(iterated))
-						.then((next: IteratorResult<T>) => {
-							if (ES2018.IteratorComplete(next)) {
-								return accumulator;
-							}
+				.then(__recursive);
 
-							let value = ES2018.IteratorValue(next);
+			/**
+			 * @param {U} accumulator
+			 * @return {Promise<U>}
+			 */
+			function __recursive(accumulator: U): Promise<U> {
+				return $NewPromise()
+					.then(() => IteratorNext(iterated))
+					.then((next: IteratorResult<T>) => {
+						if (ES2018.IteratorComplete(next)) {
+							return accumulator;
+						}
 
-							/** @type {U | PromiseLike<U>} */
-							let result: U | PromiseLike<U>;
+						let value = ES2018.IteratorValue(next);
 
-							try {
-								result = ES2018.Call<
-									typeof reducer,
-									undefined,
-									[U, T]
-								>(reducer, undefined, [accumulator, value]);
-							} catch (e) {
+						/** @type {U | PromiseLike<U>} */
+						let result: U | PromiseLike<U>;
+
+						try {
+							result = ES2018.Call<typeof reducer>(
+								reducer,
+								undefined,
+								[accumulator, value]
+							);
+						} catch (e) {
+							return AsyncIteratorClose(iterated, () => {
+								throw e;
+							});
+						}
+
+						return $NewPromise(result).then<U>(
+							__recursive,
+							(e: any) => {
 								return AsyncIteratorClose(iterated, () => {
 									throw e;
 								});
 							}
-
-							return $NewPromise(result).then<U>(
-								_recursive,
-								function(e) {
-									return AsyncIteratorClose(iterated, () => {
-										throw e;
-									});
-								}
-							);
-						});
-				});
+						);
+					});
+			}
 		},
 
 		/**
@@ -1405,19 +1417,25 @@ const AsyncIterator: typeof $IteratorPolyfill = ((): any => {
 					let items: T[] = [];
 					return items;
 				})
-				.then(function __recursive(items: T[]): Promise<T[]> {
-					return $NewPromise()
-						.then(() => IteratorNext(iterated))
-						.then((next: IteratorResult<T>) => {
-							if (ES2018.IteratorComplete(next)) {
-								return items;
-							}
+				.then(__recursive);
 
-							items.push(ES2018.IteratorValue(next));
+			/**
+			 * @param {T[]} items
+			 * @return {Promise<T[]>}
+			 */
+			function __recursive(items: T[]): Promise<T[]> {
+				return $NewPromise()
+					.then(() => IteratorNext(iterated))
+					.then((next: IteratorResult<T>) => {
+						if (ES2018.IteratorComplete(next)) {
+							return items;
+						}
 
-							return __recursive(items);
-						});
-				});
+						items.push(ES2018.IteratorValue(next));
+
+						return __recursive(items);
+					});
+			}
 		},
 
 		/**
@@ -1442,35 +1460,38 @@ const AsyncIterator: typeof $IteratorPolyfill = ((): any => {
 						);
 					}
 				})
-				.then(function __recursive(): Promise<void> {
-					return $NewPromise()
-						.then(() => IteratorNext(iterated))
-						.then((next: IteratorResult<T>) => {
-							if (ES2018.IteratorComplete(next)) {
-								return;
-							}
+				.then(__recursive);
 
-							/** @type {T} */
-							let value: T = ES2018.IteratorValue(next);
+			/** @return {Promise<void>} */
+			function __recursive(): Promise<void> {
+				return $NewPromise()
+					.then(() => IteratorNext(iterated))
+					.then((next: IteratorResult<T>) => {
+						if (ES2018.IteratorComplete(next)) {
+							return;
+						}
 
-							/** @type {void | PromiseLike<void>} */
-							let r: void | PromiseLike<void>;
+						/** @type {T} */
+						let value: T = ES2018.IteratorValue(next);
 
-							try {
-								r = ES2018.Call(fn, undefined, [value]);
-							} catch (e) {
-								return AsyncIteratorClose(iterated, () => {
-									throw e;
-								});
-							}
+						/** @type {void | PromiseLike<void>} */
+						let r: void | PromiseLike<void>;
 
-							return $NewPromise(r).then(__recursive, e => {
-								return AsyncIteratorClose(iterated, () => {
-									throw e;
-								});
+						try {
+							r = ES2018.Call(fn, undefined, [value]);
+						} catch (e) {
+							return AsyncIteratorClose(iterated, () => {
+								throw e;
+							});
+						}
+
+						return $NewPromise(r).then(__recursive, e => {
+							return AsyncIteratorClose(iterated, () => {
+								throw e;
 							});
 						});
-				});
+					});
+			}
 		},
 
 		/**
@@ -1495,40 +1516,41 @@ const AsyncIterator: typeof $IteratorPolyfill = ((): any => {
 						);
 					}
 				})
-				.then(function __recursive(): Promise<boolean> {
-					return $NewPromise()
-						.then(() => IteratorNext(iterated))
-						.then((next: IteratorResult<T>) => {
-							if (ES2018.IteratorComplete(next)) {
-								return false;
-							}
+				.then(__recursive);
 
-							/** @type {T} */
-							let value: T = ES2018.IteratorValue(next);
+			/** @return {Promise<boolean>} */
+			function __recursive(): Promise<boolean> {
+				return $NewPromise()
+					.then(() => IteratorNext(iterated))
+					.then((next: IteratorResult<T>) => {
+						if (ES2018.IteratorComplete(next)) {
+							return false;
+						}
 
-							/** @type {unknown} */
-							let result: unknown;
-							try {
-								result = ES2018.Call(fn, undefined, [value]);
-							} catch (e) {
+						/** @type {T} */
+						let value: T = ES2018.IteratorValue(next);
+
+						/** @type {unknown} */
+						let result: unknown;
+						try {
+							result = ES2018.Call(fn, undefined, [value]);
+						} catch (e) {
+							return AsyncIteratorClose(iterated, () => {
+								throw e;
+							});
+						}
+
+						return $NewPromise(result).then(
+							result =>
+								ES2018.ToBoolean(result) ? true : __recursive(),
+							e => {
 								return AsyncIteratorClose(iterated, () => {
 									throw e;
 								});
 							}
-
-							return $NewPromise(result).then(
-								result =>
-									ES2018.ToBoolean(result)
-										? true
-										: __recursive(),
-								e => {
-									return AsyncIteratorClose(iterated, () => {
-										throw e;
-									});
-								}
-							);
-						});
-				});
+						);
+					});
+			}
 		},
 
 		/**
@@ -1553,40 +1575,43 @@ const AsyncIterator: typeof $IteratorPolyfill = ((): any => {
 						);
 					}
 				})
-				.then(function __recursive(): Promise<boolean> {
-					return $NewPromise()
-						.then(() => IteratorNext(iterated))
-						.then((next: IteratorResult<T>) => {
-							if (ES2018.IteratorComplete(next)) {
-								return true;
-							}
+				.then(__recursive);
 
-							/** @type {T} */
-							let value: T = ES2018.IteratorValue(next);
+			/** @return {Promise<boolean>} */
+			function __recursive(): Promise<boolean> {
+				return $NewPromise()
+					.then(() => IteratorNext(iterated))
+					.then((next: IteratorResult<T>) => {
+						if (ES2018.IteratorComplete(next)) {
+							return true;
+						}
 
-							/** @type {unknown} */
-							let result: unknown;
-							try {
-								result = ES2018.Call(fn, undefined, [value]);
-							} catch (e) {
+						/** @type {T} */
+						let value: T = ES2018.IteratorValue(next);
+
+						/** @type {unknown} */
+						let result: unknown;
+						try {
+							result = ES2018.Call(fn, undefined, [value]);
+						} catch (e) {
+							return AsyncIteratorClose(iterated, () => {
+								throw e;
+							});
+						}
+
+						return $NewPromise(result).then(
+							result =>
+								ES2018.ToBoolean(result)
+									? __recursive()
+									: false,
+							e => {
 								return AsyncIteratorClose(iterated, () => {
 									throw e;
 								});
 							}
-
-							return $NewPromise(result).then(
-								result =>
-									ES2018.ToBoolean(result)
-										? __recursive()
-										: false,
-								e => {
-									return AsyncIteratorClose(iterated, () => {
-										throw e;
-									});
-								}
-							);
-						});
-				});
+						);
+					});
+			}
 		},
 
 		/**
@@ -1611,40 +1636,43 @@ const AsyncIterator: typeof $IteratorPolyfill = ((): any => {
 						);
 					}
 				})
-				.then(function __recursive(): Promise<T | undefined> {
-					return $NewPromise()
-						.then(() => IteratorNext(iterated))
-						.then((next: IteratorResult<T>) => {
-							if (ES2018.IteratorComplete(next)) {
-								return undefined;
-							}
+				.then(__recursive);
 
-							/** @type {T} */
-							let value: T = ES2018.IteratorValue(next);
+			/** @return {Promise<T | undefined>} */
+			function __recursive(): Promise<T | undefined> {
+				return $NewPromise()
+					.then(() => IteratorNext(iterated))
+					.then((next: IteratorResult<T>) => {
+						if (ES2018.IteratorComplete(next)) {
+							return undefined;
+						}
 
-							/** @type {unknown} */
-							let result: unknown;
-							try {
-								result = ES2018.Call(fn, undefined, [value]);
-							} catch (e) {
+						/** @type {T} */
+						let value: T = ES2018.IteratorValue(next);
+
+						/** @type {unknown} */
+						let result: unknown;
+						try {
+							result = ES2018.Call(fn, undefined, [value]);
+						} catch (e) {
+							return AsyncIteratorClose(iterated, () => {
+								throw e;
+							});
+						}
+
+						return $NewPromise(result).then(
+							result =>
+								ES2018.ToBoolean(result)
+									? value
+									: __recursive(),
+							e => {
 								return AsyncIteratorClose(iterated, () => {
 									throw e;
 								});
 							}
-
-							return $NewPromise(result).then(
-								result =>
-									ES2018.ToBoolean(result)
-										? value
-										: __recursive(),
-								e => {
-									return AsyncIteratorClose(iterated, () => {
-										throw e;
-									});
-								}
-							);
-						});
-				});
+						);
+					});
+			}
 		},
 	});
 

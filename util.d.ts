@@ -15,53 +15,103 @@ and limitations under the License.
 // Modified from tslib (https://www.npmjs.com/package/tslib)
 
 export namespace __generator {
+	const enum Opcode {
+		/**
+		 * Starts the generator, or resumes the generator with *value*
+		 * as the result of the `AwaitExpression` where execution was paused.
+		 */
+		next = 0,
+
+		/**
+		 * Resumes the generator, throwing _value_ at `AwaitExpression`
+		 * where execution was paused.
+		 */
+		throw = 1,
+
+		/**
+		 * Exits the generator, executing any `finally` blocks starting
+		 * at the `AwaitExpression` where execution was paused.
+		 */
+		return = 2,
+
+		/**
+		 * Performs an unconditional jump to the specified label,
+		 * executing any `finally` between the current instruction and the label.
+		 */
+		break = 3,
+
+		/**
+		 * Suspends the generator, setting the resume point at the next label
+		 * and yielding the _value_.
+		 */
+		yield = 4,
+
+		/**
+		 * Suspends the generator, setting the resume point at the next label
+		 * and delegating operations to the supplied value.
+		 */
+		yieldstar = 5,
+
+		/**
+		 * An internal instruction used to indicate an exception that was thrown
+		 * from the body of the generator.
+		 */
+		catch = 6,
+
+		/**
+		 * Exits a `finally` block, resuming any previous operation
+		 * (such as a `break`, `return`, `throw`, etc.)
+		 */
+		endfinally = 7,
+	}
+
 	/**
 	 * Starts the generator, or resumes the generator with *value*
 	 * as the result of the `AwaitExpression` where execution was paused.
 	 */
-	type NextOp = [0, any];
+	type NextOp = [Opcode.next, any];
 
 	/**
 	 * Resumes the generator, throwing _value_ at `AwaitExpression`
 	 * where execution was paused.
 	 */
-	type ThrowOp = [1, any];
+	type ThrowOp = [Opcode.throw, any];
 
 	/**
 	 * Exits the generator, executing any `finally` blocks starting
 	 * at the `AwaitExpression` where execution was paused.
 	 */
-	type ReturnOp<TReturn> = [2] | [2, TReturn];
+	type ReturnOp<TReturn> = [Opcode.return, TReturn?];
 
 	/**
 	 * Performs an unconditional jump to the specified label,
 	 * executing any `finally` between the current instruction and the label.
 	 */
-	type BreakOp = [3, number];
+	type BreakOp = [Opcode.break, number];
 
 	/**
 	 * Suspends the generator, setting the resume point at the next label
 	 * and yielding the _value_.
 	 */
-	type YieldOp<T> = [4, T];
+	type YieldOp<T> = [Opcode.yield, T];
 
 	/**
 	 * Suspends the generator, setting the resume point at the next label
 	 * and delegating operations to the supplied value.
 	 */
-	type YieldStarOp<T> = [5, Iterator<T>];
+	type YieldStarOp<T> = [Opcode.yieldstar, Iterator<T>];
 
 	/**
 	 * An internal instruction used to indicate an exception that was thrown
 	 * from the body of the generator.
 	 */
-	type CatchOp = [6, any];
+	type CatchOp = [Opcode.catch, any];
 
 	/**
 	 * Exits a `finally` block, resuming any previous operation
 	 * (such as a `break`, `return`, `throw`, etc.)
 	 */
-	type EndFinallyOp = [7];
+	type EndFinallyOp = [Opcode.endfinally];
 
 	type TryTuple = [number, number | undefined, number | undefined, number];
 	type OpTuple<T = any, TReturn = any> =
@@ -73,86 +123,54 @@ export namespace __generator {
 		| YieldStarOp<T>
 		| CatchOp
 		| EndFinallyOp;
-	type Opcode = OpTuple<any>[0];
-	type Body<T, TYield, TReturn = any, TNext = undefined> = (
+	type Body<T, TYield, TReturn = any, TNext = any> = (
 		this: T,
 		state: State<TYield, TReturn, TNext>
 	) => OpTuple<TYield, TReturn> | void;
 
-	interface State<TYield, TReturn = any, TNext = undefined> {
+	interface State<TYield, TReturn = any, TNext = any> {
 		label: number;
 		sent(): TNext;
 
 		trys: TryTuple[];
 		ops: OpTuple<TYield, TReturn>[];
 	}
-
-	/*
-	type TryTuple = [number, number | undefined, number | undefined, number];
-	type OpTuple<T = any, TReturn = any> =
-		| NextOp
-		| ThrowOp
-		| ReturnOp<TReturn>
-		| BreakOp
-		| YieldOp<T>
-		| YieldStarOp<T>
-		| CatchOp
-		| EndFinallyOp;
-	type Opcode = OpTuple<any>[0];
-	type Body<T, Ops extends OpTuple = OpTuple, TNext = undefined> = (
-		this: T,
-		state: State<Ops, TNext>
-	) => Ops | void;
-
-	interface State<Ops extends OpTuple = OpTuple, TNext = undefined> {
-		label: number;
-		sent(): TNext;
-
-		trys: TryTuple[];
-		ops: Ops[];
-	}
-
-	type NonVoid<T> = T extends void ? never : T;
-
-	type BodyToGen<B extends Body<any>> = OpsToGen<NonVoid<ReturnType<B>>, ReturnType<Parameters<B>[0]["sent"]>>;
-
-	type OpsToGen<T extends OpTuple, TNext = any> = Generator<
-		T extends [4, infer TYield] ? TYield : any,
-		T extends [2, infer TReturn] ? TReturn : any,
-		TNext
-	>;
-	*/
 }
-
-export function __generator<T, TYield, TReturn = any, TNext = undefined>(
+export function __generator<T, TYield, TReturn = any, TNext = any>(
 	thisArg: T,
 	body: __generator.Body<T, TYield, TReturn, TNext>
-): Generator<TYield, never extends NonNullable<TReturn> ? TReturn : NonNullable<TReturn>, TNext>;
+): Generator<TYield, TReturn, TNext>;
 
+export function __await<V>(v: V): V extends __await<infer VInner> ? __await<VInner> : __await<V>;
 export namespace __await {
-	interface Await<V> {
-		v: V;
-
-		[__await.__awaiter__]: true;
-	}
-
-	interface AwaitConstructor {
-		<V>(value: V): V extends Await<infer VInner> ? Await<VInner> : Await<V>;
-		new <V>(value: V): V extends Await<infer VInner> ? Await<VInner> : Await<V>;
-
-		/**
-		 * Used as a workaround because of the lack of proper nominal types.
-		 *
-		 * Doesn't actually exist during runtime.
-		 */
-		readonly __awaiter__: unique symbol;
-	}
+	/**
+	 * Used as a workaround because of the lack of proper nominal types.
+	 *
+	 * Doesn't actually exist during runtime.
+	 */
+	const __nominal__: unique symbol;
+}
+export interface __await<V> {
+	v: V;
+	readonly [__await.__nominal__]?: undefined;
 }
 
-export const __await: __await.AwaitConstructor;
-
-export function __asyncGenerator<T, A extends any[], TYield, TReturn = any>(
+export function __asyncGenerator<
+	T,
+	A extends any[],
+	I extends Iterator<any, any, any>
+>(
 	thisArg: T,
-	_arguments: A | ArrayLike<A extends (infer T)[] ? (never extends T ? any : T) : any> | null | undefined,
-	generator: (this: T, ...args: A) => Iterator<TYield | __await.Await<any>, TReturn, any>
-): AsyncGenerator<TYield, TReturn, any>;
+	_arguments:
+		| Readonly<A>
+		| ArrayLike<
+			A extends Array<infer T>
+				? never extends T
+					? any
+					: T
+				: any
+		>,
+	generator: (this: T, ...args: A) => I
+): I extends Generator<any>
+	? AsyncGenerator<any>
+	: AsyncIterableIterator<any>;

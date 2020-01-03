@@ -69,9 +69,22 @@ exports.__generator = function __generator(thisArg, body) {
 	}
 }
 
-exports.__await = function __await(v) {
+/**
+ * @template V
+ * @typedef {object} __await
+ * @property {V} v
+ */
+
+/**
+ * @template V
+ * @param {V} v
+ * @return {__await<V>}
+ * @constructor
+ */
+function __await(v) {
 	return this instanceof __await ? ((this.v = v), this) : new __await(v);
 };
+exports.__await = __await;
 
 /**
  * @template T
