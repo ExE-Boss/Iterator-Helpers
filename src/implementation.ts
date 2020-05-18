@@ -2,25 +2,46 @@
 "use strict";
 declare function require<T = any>(id: string): T;
 
-const tslib_1: typeof import("../util") = require("./util"),
+const tslib_1: typeof import("../util.js") = require("./util.js"),
 	{ __generator, __await, __asyncGenerator } = tslib_1;
 
-import {
+import type {
 	Iterator as $IteratorPolyfill,
 	AsyncIterator as $AsyncIteratorPolyfill,
-} from "../implementation";
+} from "../implementation.js";
 
-import ES2018 = require("es-abstract/es2018");
-import GetIntrinsic = require("es-abstract/GetIntrinsic");
-/** @type {<T>(iterable: T) => T extends Iterable<unknown> ? () => Iterator<T extends Iterable<infer U> ? U : unknown> : undefined} */
-const getIteratorMethod: <T>(
-	iterable: T
-) => T extends Iterable<unknown>
-	? () => Iterator<T extends Iterable<infer U> ? U : unknown>
-	: undefined = require<
-	(ES: any, iterable: any) => any
->("es-abstract/helpers/getIteratorMethod").bind(null, ES2018);
-import $setProto = require("es-abstract/helpers/setProto");
+import GetIntrinsic = require("es-abstract/GetIntrinsic.js");
+
+import AdvanceStringIndex = require("es-abstract/2018/AdvanceStringIndex.js");
+import Call = require("es-abstract/2018/Call.js");
+import CreateMethodProperty = require("es-abstract/2018/CreateMethodProperty.js");
+import FromPropertyDescriptor = require("es-abstract/2018/FromPropertyDescriptor.js");
+import GetMethod = require("es-abstract/2018/GetMethod.js");
+import GetV = require("es-abstract/2018/GetV.js");
+import Invoke = require("es-abstract/2018/Invoke.js");
+import IsArray = require("es-abstract/2018/IsArray.js");
+import IsCallable = require("es-abstract/2018/IsCallable.js");
+import IsDataDescriptor = require("es-abstract/2018/IsDataDescriptor.js");
+import IteratorClose = require("es-abstract/2018/IteratorClose.js");
+import IteratorComplete = require("es-abstract/2018/IteratorComplete.js");
+import IteratorValue = require("es-abstract/2018/IteratorValue.js");
+import OrdinaryHasInstance = require("es-abstract/2018/OrdinaryHasInstance.js");
+import OrdinaryObjectCreate = require("es-abstract/2018/ObjectCreate.js");
+import SameValue = require("es-abstract/2018/SameValue.js");
+import ToBoolean = require("es-abstract/2018/ToBoolean.js");
+import ToInteger = require("es-abstract/2018/ToInteger.js");
+import Type = require("es-abstract/2018/Type.js");
+
+const ES = {
+	AdvanceStringIndex,
+	GetMethod,
+	IsArray,
+	Type,
+};
+
+import DefineOwnProperty = require("es-abstract/helpers/DefineOwnProperty.js");
+import getIteratorMethod = require("es-abstract/helpers/getIteratorMethod.js");
+import $setProto = require("es-abstract/helpers/setProto.js");
 
 import define = require("define-properties");
 import inspect = require("object-inspect");
@@ -117,8 +138,6 @@ function GetIterator<
 		: I
 >;
 
-/** @typedef {NonNullable<Parameters<typeof Object.create>[0]>} obj */
-
 /**
  * @template T, F
  * @typedef {F extends (...args: infer A) => infer R ? (this: T, ...args: A) => R : F} SetThisType
@@ -151,12 +170,12 @@ function GetIterator<
 		throw new $TypeError("Assertion failed: `hint` must be one of 'sync' or 'async', got " + inspect(hint));
 	}
 
-	/** @type {any} */
+	/** @type {*} */
 	var actualMethod: any = method;
 	if (arguments.length < 3) {
 		if (actualHint === "async") {
 			if (hasSymbols && $asyncIterator) {
-				actualMethod = ES2018.GetMethod(obj, $asyncIterator);
+				actualMethod = GetMethod(obj, $asyncIterator);
 			}
 			if (actualMethod === undefined) {
 				throw new $TypeError(
@@ -164,18 +183,18 @@ function GetIterator<
 				);
 			}
 		} else {
-			actualMethod = getIteratorMethod(obj);
+			actualMethod = getIteratorMethod(ES, obj);
 		}
 	}
 
 	/** @type {I} */
-	var iterator: I = ES2018.Call<(this: O) => I>(actualMethod, obj);
-	if (ES2018.Type(iterator) !== "Object") {
+	var iterator: I = Call(actualMethod, obj);
+	if (Type(iterator) !== "Object") {
 		throw new $TypeError("iterator must return an object");
 	}
 
-	/** @type {any} */
-	var nextMethod: any = ES2018.GetV(iterator, "next");
+	/** @type {*} */
+	var nextMethod: any = GetV(iterator, "next");
 	return {
 		"[[Iterator]]": iterator,
 		"[[NextMethod]]": nextMethod,
@@ -212,12 +231,11 @@ function AsyncIteratorClose<T>(
 
 	/** @type {ReturnType<typeof completion>} */
 	var completionRecord: ReturnType<typeof completion>;
-	var ES = ES2018;
 
 	// Heavily modified from the output of https://www.npmjs.com/package/babel-plugin-async-to-promises
 	return $NewPromise().then((): PromiseLike<T> | T => {
 		if ("[[Iterator]]" in iteratorRecord) {
-			if (ES.Type(iteratorRecord["[[Iterator]]"]) !== "Object") {
+			if (Type(iteratorRecord["[[Iterator]]"]) !== "Object") {
 				throw new $TypeError(
 					"Assertion failed: Type(iteratorRecord.[[Iterator]]) is not Object"
 				);
@@ -227,28 +245,28 @@ function AsyncIteratorClose<T>(
 			iterator = iteratorRecord;
 		}
 
-		if (!ES.IsCallable(completion)) {
+		if (!IsCallable(completion)) {
 			throw new $TypeError(
 				"Assertion failed: completion is not a thunk for a Completion Record"
 			);
 		}
 
 		completionThunk = completion;
-		iteratorReturn = ES.GetMethod(iterator, "return")!;
+		iteratorReturn = GetMethod(iterator, "return")!;
 
 		if (typeof iteratorReturn === "undefined") {
 			return completionThunk();
 		} else {
 			return $NewPromise()
-				.then(function() {
-					return ES.Call(iteratorReturn, iterator, []);
+				.then(function () {
+					return Call(iteratorReturn, iterator, []);
 				})
 				.then(
-					function(innerResult) {
+					function (innerResult) {
 						completionRecord = completionThunk!(); // if innerResult worked, then throw if the completion does
 						completionThunk = null; // ensure it's not called twice.
 
-						if (ES.Type(innerResult) !== "Object") {
+						if (Type(innerResult) !== "Object") {
 							throw new $TypeError(
 								"iterator .return must return an object"
 							);
@@ -256,7 +274,7 @@ function AsyncIteratorClose<T>(
 
 						return completionRecord;
 					},
-					function(e) {
+					function (e) {
 						// if we hit here, then "e" is the innerResult completion that needs re-throwing
 
 						// if the completion is of type "throw", this will throw.
@@ -273,27 +291,39 @@ function AsyncIteratorClose<T>(
 
 function GetIteratorDirect<O extends object>(
 	obj: O,
+	useIteratorRecord: true
+): O extends Iterator<any, any, any> | AsyncIterator<any, any, any>
+	? IteratorRecord<O>
+	: never;
+function GetIteratorDirect<O extends object>(
+	obj: O,
 	useIteratorRecord?: false
 ): O extends Iterator<any, any, any> | AsyncIterator<any, any, any> ? O : never;
 
 /**
- * @template {obj} O
+ * @template O
  * @param {O} obj
- * @return {O extends Iterator<any, any, any> | AsyncIterator<any, any, any>
-	? O : never} */
+ * @param {boolean} [useIteratorRecord]
+ */
 function GetIteratorDirect<O extends object>(
-	obj: O
-): O extends Iterator<any, any, any> | AsyncIterator<any, any, any>
-	? O
-	: never {
-	if (ES2018.Type(obj) !== "Object") {
-		throw new $TypeError("obj must be an Object, got " + ES2018.Type(obj));
+	obj: O,
+	useIteratorRecord?: boolean
+) {
+	if (Type(obj) !== "Object") {
+		throw new $TypeError("obj must be an Object, got " + Type(obj));
 	}
-	const nextMethod = ES2018.GetV(obj, "next");
-	if (!ES2018.IsCallable(nextMethod)) {
+	const nextMethod = GetV(obj, "next");
+	if (!IsCallable(nextMethod)) {
 		throw new $TypeError(inspect(nextMethod) + " is not a function");
 	}
-	return obj as any;
+	// prettier-ignore
+	return useIteratorRecord
+		? {
+			"[[Iterator]]": obj,
+			"[[NextMethod]]": nextMethod,
+			"[[Done]]": false,
+		}
+		: obj;
 }
 
 function IteratorStep<T>(
@@ -306,7 +336,7 @@ function IteratorStep<T, TNext = undefined>(
 
 /**
  * @template T, TReturn, TNext
- * @param {Iterator<T, TReturn, TNext>} iterator
+ * @param {Iterator<T, TReturn, TNext> | IteratorRecord<Iterator<T, TReturn, TNext>>} iterator
  * @param {TNext} [value]
  * @return {false | IteratorYieldResult<T>}
  */
@@ -316,13 +346,14 @@ function IteratorStep<T, TReturn, TNext>(
 		| IteratorRecord<Iterator<T, TReturn, TNext>>,
 	value?: TNext
 ): false | IteratorYieldResult<T> {
+	/** @type {IteratorResult<T, TReturn>} */
 	let result: IteratorResult<T, TReturn>;
 	if (arguments.length > 1) {
 		result = IteratorNext(iterator, value);
 	} else {
 		result = IteratorNext(iterator);
 	}
-	let done = ES2018.IteratorComplete(result);
+	let done = IteratorComplete(result);
 	return done === true ? false : (result as IteratorYieldResult<T>);
 }
 
@@ -368,27 +399,22 @@ function IteratorNext<T, TReturn = unknown, TNext = undefined>(
 ): IteratorResult<T, TReturn> | Promise<IteratorResult<T, TReturn>> {
 	let result: any;
 	if ("[[Iterator]]" in iterator) {
-		result = ES2018.Call(
+		result = Call(
 			iterator["[[NextMethod]]"],
 			iterator["[[Iterator]]"],
 			arguments.length < 2 ? [] : [value]
 		);
 	} else {
-		result = ES2018.Invoke(
-			iterator,
-			"next",
-			arguments.length < 2 ? [] : [value]
-		);
+		result = Invoke(iterator, "next", arguments.length < 2 ? [] : [value]);
 	}
-	if (ES2018.Type(result) !== "Object") {
+	if (Type(result) !== "Object") {
 		throw new $TypeError("iterator next must return an object");
 	}
 	return result;
 }
 
-/** @type {typeof import('./implementation').Iterator} */
-const Iterator: typeof $IteratorPolyfill = ((): any => {
-	/** @type {any} */
+/** @type {typeof import("./implementation.js").Iterator} */
+export const Iterator: typeof $IteratorPolyfill = ((): any => {
 	function Iterator() {
 		if (new.target === undefined) {
 			throw new $TypeError("Cannot call a class as a function");
@@ -402,11 +428,10 @@ const Iterator: typeof $IteratorPolyfill = ((): any => {
 		/**
 		 * @template T
 		 * @param {Iterable<T> | Iterator<T>} O
-		 * @return {import('./implementation').Iterator<T>}
+		 * @return {import("./implementation.js").Iterator<T>}
 		 */
 		from<T>(O: Iterable<T> | Iterator<T>): $IteratorPolyfill<T> {
-			let usingIterator = getIteratorMethod(O);
-			/** @type {IteratorRecord<Iterator<T>>} */
+			let usingIterator = getIteratorMethod(ES, O);
 			let iteratorRecord: IteratorRecord<Iterator<T>>;
 			if (usingIterator !== undefined) {
 				iteratorRecord = GetIterator<Iterable<T>, Iterator<T>>(
@@ -414,26 +439,24 @@ const Iterator: typeof $IteratorPolyfill = ((): any => {
 					"sync",
 					usingIterator
 				);
-				let hasInstance = ES2018.OrdinaryHasInstance(
+				let hasInstance = OrdinaryHasInstance(
 					Iterator,
 					iteratorRecord["[[Iterator]]"]
 				);
 				if (hasInstance) {
-					return iteratorRecord["[[Iterator]]"] as any;
+					// prettier-ignore
+					return /** @type {import("./implementation.js").Iterator<T>} */ (
+						iteratorRecord["[[Iterator]]"]
+					) as $IteratorPolyfill<T>;
 				}
 			} else {
-				let iterator = GetIteratorDirect(O);
-				iteratorRecord = {
-					"[[Iterator]]": iterator,
-					"[[NextMethod]]": iterator.next,
-					"[[Done]]": false,
-				};
+				iteratorRecord = GetIteratorDirect(O, true);
 			}
 
-			/** @type {any} */
-			let wrapper: $IteratorPolyfill<T> = ES2018.ObjectCreate(
+			/** @type {import("./implementation.js").Iterator<T>} */
+			let wrapper: $IteratorPolyfill<T> = OrdinaryObjectCreate(
 				WrapForValidIteratorPrototype
-			) as $IteratorPolyfill<T>;
+			);
 			SLOT.set(wrapper, "[[Iterated]]", iteratorRecord);
 			return wrapper;
 		},
@@ -452,7 +475,7 @@ const Iterator: typeof $IteratorPolyfill = ((): any => {
 			mapper: (value: T) => U
 		): Generator<U, undefined> {
 			let iterated = GetIteratorDirect(this);
-			if (!ES2018.IsCallable(mapper)) {
+			if (!IsCallable(mapper)) {
 				throw new $TypeError(inspect(mapper) + " is not a function");
 			}
 
@@ -462,21 +485,21 @@ const Iterator: typeof $IteratorPolyfill = ((): any => {
 			let next: false | IteratorYieldResult<any>;
 			while ((next = IteratorStep(iterated, lastValue))) {
 				/** @type {T} */
-				let value: T = ES2018.IteratorValue(next);
+				let value: T = IteratorValue(next);
 
 				/** @type {U} */
 				let mapped: U;
 				try {
-					mapped = ES2018.Call(mapper, undefined, [value]);
+					mapped = Call(mapper, undefined, [value]);
 				} catch (e) {
-					return ES2018.IteratorClose(iterated, () => {
+					return IteratorClose(iterated, () => {
 						throw e;
 					});
 				}
 				try {
 					lastValue = yield mapped;
 				} catch (e) {
-					return ES2018.IteratorClose(iterated, () => {
+					return IteratorClose(iterated, () => {
 						throw e;
 					});
 				}
@@ -494,7 +517,7 @@ const Iterator: typeof $IteratorPolyfill = ((): any => {
 			filterer: (value: T) => unknown
 		): Generator<T, undefined> {
 			let iterated = GetIteratorDirect(this);
-			if (!ES2018.IsCallable(filterer)) {
+			if (!IsCallable(filterer)) {
 				throw new $TypeError(inspect(filterer) + " is not a function");
 			}
 
@@ -504,13 +527,13 @@ const Iterator: typeof $IteratorPolyfill = ((): any => {
 			let next: false | IteratorYieldResult<any>;
 			while ((next = IteratorStep(iterated, lastValue))) {
 				/** @type {T} */
-				let value: T = ES2018.IteratorValue(next);
+				let value: T = IteratorValue(next);
 
 				let selected;
 				try {
-					selected = ES2018.Call(filterer, undefined, [value]);
+					selected = Call(filterer, undefined, [value]);
 				} catch (e) {
-					return ES2018.IteratorClose(iterated, () => {
+					return IteratorClose(iterated, () => {
 						throw e;
 					});
 				}
@@ -518,7 +541,7 @@ const Iterator: typeof $IteratorPolyfill = ((): any => {
 					try {
 						lastValue = yield value;
 					} catch (e) {
-						return ES2018.IteratorClose(iterated, () => {
+						return IteratorClose(iterated, () => {
 							throw e;
 						});
 					}
@@ -534,7 +557,7 @@ const Iterator: typeof $IteratorPolyfill = ((): any => {
 		 */
 		*take<T>(this: Iterator<T>, limit: number): Generator<T, undefined> {
 			let iterated = GetIteratorDirect(this);
-			let remaining = ES2018.ToInteger(limit);
+			let remaining = ToInteger(limit);
 			if (remaining < 0) {
 				throw new $RangeError("limit must be >= 0");
 			}
@@ -548,9 +571,9 @@ const Iterator: typeof $IteratorPolyfill = ((): any => {
 				if (next === false) break;
 
 				try {
-					lastValue = yield ES2018.IteratorValue(next);
+					lastValue = yield IteratorValue(next);
 				} catch (e) {
-					return ES2018.IteratorClose(iterated, () => {
+					return IteratorClose(iterated, () => {
 						throw e;
 					});
 				}
@@ -565,7 +588,7 @@ const Iterator: typeof $IteratorPolyfill = ((): any => {
 		 */
 		*drop<T>(this: Iterator<T>, limit: number): Generator<T, undefined> {
 			let iterated = GetIteratorDirect(this);
-			let remaining = ES2018.ToInteger(limit);
+			let remaining = ToInteger(limit);
 			if (remaining < 0) {
 				throw new $RangeError("limit must be >= 0");
 			}
@@ -584,9 +607,9 @@ const Iterator: typeof $IteratorPolyfill = ((): any => {
 			let lastValue: unknown;
 			while ((next = IteratorStep(iterated, lastValue))) {
 				try {
-					lastValue = yield ES2018.IteratorValue(next);
+					lastValue = yield IteratorValue(next);
 				} catch (e) {
-					return ES2018.IteratorClose(iterated, () => {
+					return IteratorClose(iterated, () => {
 						throw e;
 					});
 				}
@@ -611,7 +634,7 @@ const Iterator: typeof $IteratorPolyfill = ((): any => {
 			let next: false | IteratorYieldResult<T>;
 			while ((next = IteratorStep(iterated, lastValue))) {
 				/** @type {T} */
-				let value: T = ES2018.IteratorValue(next);
+				let value: T = IteratorValue(next);
 
 				let pair: [number, T] = [index, value];
 				index += 1;
@@ -619,7 +642,7 @@ const Iterator: typeof $IteratorPolyfill = ((): any => {
 				try {
 					lastValue = yield pair;
 				} catch (e) {
-					return ES2018.IteratorClose(iterated, () => {
+					return IteratorClose(iterated, () => {
 						throw e;
 					});
 				}
@@ -638,7 +661,7 @@ const Iterator: typeof $IteratorPolyfill = ((): any => {
 			mapper: (value: T) => Iterable<U>
 		): Generator<U, undefined> {
 			let iterated = GetIteratorDirect(this);
-			if (!ES2018.IsCallable(mapper)) {
+			if (!IsCallable(mapper)) {
 				throw new $TypeError(inspect(mapper) + " is not a function");
 			}
 
@@ -646,13 +669,13 @@ const Iterator: typeof $IteratorPolyfill = ((): any => {
 			let next: false | IteratorYieldResult<T>;
 			while ((next = IteratorStep(iterated))) {
 				/** @type {T} */
-				let value: T = ES2018.IteratorValue(next);
+				let value: T = IteratorValue(next);
 
 				let mapped: Iterable<U>;
 				try {
-					mapped = ES2018.Call(mapper, undefined, [value]);
+					mapped = Call(mapper, undefined, [value]);
 				} catch (e) {
-					return ES2018.IteratorClose(iterated, () => {
+					return IteratorClose(iterated, () => {
 						throw e;
 					});
 				}
@@ -661,7 +684,7 @@ const Iterator: typeof $IteratorPolyfill = ((): any => {
 				/** @type {false | IteratorYieldResult<U>} */
 				let innerNext: false | IteratorYieldResult<U>;
 				while ((innerNext = IteratorStep(innerIterator))) {
-					yield ES2018.IteratorValue(innerNext);
+					yield IteratorValue(innerNext);
 				}
 			}
 		},
@@ -680,7 +703,7 @@ const Iterator: typeof $IteratorPolyfill = ((): any => {
 			initialValue?: U
 		): U {
 			let iterated = GetIteratorDirect(this);
-			if (!ES2018.IsCallable(reducer)) {
+			if (!IsCallable(reducer)) {
 				throw new $TypeError(inspect(reducer) + " is not a function");
 			}
 
@@ -696,23 +719,20 @@ const Iterator: typeof $IteratorPolyfill = ((): any => {
 						"reduce of empty iterator with no initial value"
 					);
 				}
-				accumulator = ES2018.IteratorValue<any>(next);
+				accumulator = IteratorValue(next) as any;
 			} else {
 				accumulator = initialValue!;
 			}
 
 			while ((next = IteratorStep(iterated))) {
 				/** @type {T} */
-				let value: T = ES2018.IteratorValue(next);
+				let value: T = IteratorValue(next);
 
 				let result: any;
 				try {
-					result = ES2018.Call<typeof reducer>(reducer, undefined, [
-						accumulator,
-						value,
-					]);
+					result = Call(reducer, undefined, [accumulator, value]);
 				} catch (e) {
-					return ES2018.IteratorClose(iterated, () => {
+					return IteratorClose(iterated, () => {
 						throw e;
 					});
 				}
@@ -735,7 +755,7 @@ const Iterator: typeof $IteratorPolyfill = ((): any => {
 			/** @type {false | IteratorYieldResult<T>}  */
 			let next: false | IteratorYieldResult<T>;
 			while ((next = IteratorStep(iterated))) {
-				items.push(ES2018.IteratorValue(next));
+				items.push(IteratorValue(next));
 			}
 
 			return items;
@@ -748,7 +768,7 @@ const Iterator: typeof $IteratorPolyfill = ((): any => {
 		 */
 		forEach<T>(this: Iterator<T>, fn: (value: T) => void): void {
 			let iterated = GetIteratorDirect(this);
-			if (!ES2018.IsCallable(fn)) {
+			if (!IsCallable(fn)) {
 				throw new $TypeError(inspect(fn) + " is not a function");
 			}
 
@@ -756,12 +776,12 @@ const Iterator: typeof $IteratorPolyfill = ((): any => {
 			let next: false | IteratorYieldResult<T>;
 			while ((next = IteratorStep(iterated))) {
 				/** @type {T} */
-				let value: T = ES2018.IteratorValue(next);
+				let value: T = IteratorValue(next);
 
 				try {
-					ES2018.Call(fn, undefined, [value]);
+					Call(fn, undefined, [value]);
 				} catch (e) {
-					return ES2018.IteratorClose(iterated, () => {
+					return IteratorClose(iterated, () => {
 						throw e;
 					});
 				}
@@ -776,7 +796,7 @@ const Iterator: typeof $IteratorPolyfill = ((): any => {
 		 */
 		some<T>(this: Iterator<T>, fn: (value: T) => unknown): boolean {
 			let iterated = GetIteratorDirect(this);
-			if (!ES2018.IsCallable(fn)) {
+			if (!IsCallable(fn)) {
 				throw new $TypeError(inspect(fn) + " is not a function");
 			}
 
@@ -784,13 +804,13 @@ const Iterator: typeof $IteratorPolyfill = ((): any => {
 			let next: false | IteratorYieldResult<T>;
 			while ((next = IteratorStep(iterated))) {
 				/** @type {T} */
-				let value: T = ES2018.IteratorValue(next);
+				let value: T = IteratorValue(next);
 
 				let result;
 				try {
-					result = ES2018.Call(fn, undefined, [value]);
+					result = Call(fn, undefined, [value]);
 				} catch (e) {
-					return ES2018.IteratorClose(iterated, () => {
+					return IteratorClose(iterated, () => {
 						throw e;
 					});
 				}
@@ -810,7 +830,7 @@ const Iterator: typeof $IteratorPolyfill = ((): any => {
 		 */
 		every<T>(this: Iterator<T>, fn: (value: T) => unknown): boolean {
 			let iterated = GetIteratorDirect(this);
-			if (!ES2018.IsCallable(fn)) {
+			if (!IsCallable(fn)) {
 				throw new $TypeError(inspect(fn) + " is not a function");
 			}
 
@@ -818,13 +838,13 @@ const Iterator: typeof $IteratorPolyfill = ((): any => {
 			let next: false | IteratorYieldResult<T>;
 			while ((next = IteratorStep(iterated))) {
 				/** @type {T} */
-				let value: T = ES2018.IteratorValue(next);
+				let value: T = IteratorValue(next);
 
 				let result;
 				try {
-					result = ES2018.Call(fn, undefined, [value]);
+					result = Call(fn, undefined, [value]);
 				} catch (e) {
-					return ES2018.IteratorClose(iterated, () => {
+					return IteratorClose(iterated, () => {
 						throw e;
 					});
 				}
@@ -847,7 +867,7 @@ const Iterator: typeof $IteratorPolyfill = ((): any => {
 			fn: (value: unknown) => unknown
 		): T | undefined {
 			let iterated = GetIteratorDirect(this);
-			if (!ES2018.IsCallable(fn)) {
+			if (!IsCallable(fn)) {
 				throw new $TypeError(inspect(fn) + " is not a function");
 			}
 
@@ -855,13 +875,13 @@ const Iterator: typeof $IteratorPolyfill = ((): any => {
 			let next: false | IteratorYieldResult<T>;
 			while ((next = IteratorStep(iterated))) {
 				/** @type {T} */
-				let value: T = ES2018.IteratorValue(next);
+				let value: T = IteratorValue(next);
 
 				let result;
 				try {
-					result = ES2018.Call(fn, undefined, [value]);
+					result = Call(fn, undefined, [value]);
 				} catch (e) {
-					return ES2018.IteratorClose(iterated, () => {
+					return IteratorClose(iterated, () => {
 						throw e;
 					});
 				}
@@ -873,16 +893,23 @@ const Iterator: typeof $IteratorPolyfill = ((): any => {
 	});
 
 	if ($toStringTag) {
-		ES2018.OrdinaryDefineOwnProperty(Iterator.prototype, $toStringTag, {
-			"[[Value]]": "Iterator",
-			"[[Configurable]]": true,
-		});
+		DefineOwnProperty(
+			IsDataDescriptor,
+			SameValue,
+			FromPropertyDescriptor,
+			Iterator.prototype,
+			$toStringTag,
+			{
+				"[[Value]]": "Iterator",
+				"[[Configurable]]": true,
+			}
+		);
 	}
 
 	if ($IteratorProto) {
 		$setProto!(Iterator.prototype, $IteratorProto);
 
-		ES2018.CreateMethodProperty(
+		CreateMethodProperty(
 			Iterator.prototype,
 			$iterator!,
 			// @ts-ignore
@@ -891,13 +918,11 @@ const Iterator: typeof $IteratorPolyfill = ((): any => {
 	} else if ($iterator) {
 		// This probably can't occur in a real environment
 
-		ES2018.CreateMethodProperty(
-			Iterator.prototype,
-			$iterator,
-			function $iterator(this: any) {
-				return this;
-			}
-		);
+		CreateMethodProperty(Iterator.prototype, $iterator, function $iterator(
+			this: any
+		) {
+			return this;
+		});
 
 		try {
 			Object.defineProperty(Iterator.prototype[$iterator], "name", {
@@ -906,12 +931,13 @@ const Iterator: typeof $IteratorPolyfill = ((): any => {
 		} catch {}
 	}
 
-	return Iterator;
+	// prettier-ignore
+	return /** @type {any} */ (Iterator);
 })();
 
-export { Iterator };
-
-const WrapForValidIteratorPrototype = ES2018.ObjectCreate(Iterator.prototype);
+/** @type {import("./implementation.js").Iterator<*>} */
+// prettier-ignore
+const WrapForValidIteratorPrototype: $IteratorPolyfill<any> = OrdinaryObjectCreate(Iterator.prototype);
 define(WrapForValidIteratorPrototype, {
 	next(value?: any) {
 		const O = this;
@@ -930,7 +956,7 @@ define(WrapForValidIteratorPrototype, {
 	return<TReturn>(v?: TReturn): IteratorResult<never, TReturn> {
 		const O = this;
 		SLOT.assert(O, "[[Iterated]]");
-		return ES2018.IteratorClose(
+		return IteratorClose(
 			SLOT.get(O, "[[Iterated]]")["[[Iterator]]"],
 			() => ({
 				done: true,
@@ -946,19 +972,19 @@ define(WrapForValidIteratorPrototype, {
 			O,
 			"[[Iterated]]"
 		);
-		const _throw: Iterator<any>["throw"] = ES2018.GetMethod(
+		const _throw: Iterator<any>["throw"] = GetMethod(
 			iterator["[[Iterator]]"],
 			"throw"
 		);
 		if (_throw === undefined) {
 			throw v;
 		}
-		return ES2018.Call(_throw, iterator, [v]);
+		return Call(_throw, iterator, [v]);
 	},
 });
 
-/** @type {typeof import('./implementation').AsyncIterator} */
-const AsyncIterator: typeof $IteratorPolyfill = ((): any => {
+/** @type {typeof import("./implementation.js").AsyncIterator} */
+export const AsyncIterator: typeof $IteratorPolyfill = ((): any => {
 	function AsyncIterator() {
 		if (new.target === undefined) {
 			throw new $TypeError("Cannot call a class as a function");
@@ -972,33 +998,36 @@ const AsyncIterator: typeof $IteratorPolyfill = ((): any => {
 		/**
 		 * @template T
 		 * @param {Iterable<T> | Iterator<T> | AsyncIterable<T> | AsyncIterator<T>} O
-		 * @return {import('./implementation').AsyncIterator<T>}
+		 * @return {import("./implementation.js").AsyncIterator<T>}
 		 */
 		from<T>(
 			O: Iterable<T> | Iterator<T> | AsyncIterable<T> | AsyncIterator<T>
-		): AsyncIterator<T> {
+		): $AsyncIteratorPolyfill<T> {
 			/** @type {(() => Iterator<T> | AsyncIterator<T>) | undefined} */
 			let usingIterator:
 				| (() => Iterator<T> | AsyncIterator<T>)
 				| undefined = $asyncIterator
-				? (ES2018.GetMethod(O, $asyncIterator) as
+				? (GetMethod(O, $asyncIterator) as
 						| (() => AsyncIterator<T>)
 						| undefined)
 				: undefined;
 			let iteratorRecord: IteratorRecord<AsyncIterator<T>> | undefined;
 			if (usingIterator !== undefined) {
 				iteratorRecord = GetIterator(O, "async", usingIterator);
-				let hasInstance = ES2018.OrdinaryHasInstance(
+				let hasInstance = OrdinaryHasInstance(
 					AsyncIterator,
 					iteratorRecord["[[Iterator]]"]
 				);
 				if (hasInstance) {
-					return iteratorRecord["[[Iterator]]"] as any;
+					// prettier-ignore
+					return /** @type {import("./implementation.js").AsyncIterator<T>} */ (
+						iteratorRecord["[[Iterator]]"]
+					) as $AsyncIteratorPolyfill<T>;
 				}
 			}
 
 			if (iteratorRecord === undefined) {
-				usingIterator = getIteratorMethod(O);
+				usingIterator = getIteratorMethod(ES, O);
 				if (usingIterator !== undefined) {
 					throw new $TypeError(
 						"async from sync iterators aren't currently supported"
@@ -1008,18 +1037,13 @@ const AsyncIterator: typeof $IteratorPolyfill = ((): any => {
 			}
 
 			if (iteratorRecord === undefined) {
-				let iterator = GetIteratorDirect(O) as AsyncIterator<T>;
-				iteratorRecord = {
-					"[[Iterator]]": iterator,
-					"[[NextMethod]]": iterator.next,
-					"[[Done]]": false,
-				};
+				iteratorRecord = GetIteratorDirect(O as AsyncIterator<T>, true);
 			}
 
-			/** @type {import('./implementation').AsyncIterator<T>} */
-			let wrapper: $AsyncIteratorPolyfill<T> = ES2018.ObjectCreate(
+			/** @type {import("./implementation.js").AsyncIterator<T>} */
+			let wrapper: $AsyncIteratorPolyfill<T> = OrdinaryObjectCreate(
 				WrapForValidAsyncIteratorPrototype
-			) as $AsyncIteratorPolyfill<T>;
+			);
 			SLOT.set(wrapper, "[[AsyncIterated]]", iteratorRecord);
 			return wrapper;
 		},
@@ -1038,7 +1062,7 @@ const AsyncIterator: typeof $IteratorPolyfill = ((): any => {
 			mapper: (value: T) => U | PromiseLike<U>
 		): AsyncGenerator<U, undefined> {
 			let iterated = GetIteratorDirect(this);
-			if (!ES2018.IsCallable(mapper)) {
+			if (!IsCallable(mapper)) {
 				throw new $TypeError(inspect(mapper) + " is not a function");
 			}
 
@@ -1048,14 +1072,14 @@ const AsyncIterator: typeof $IteratorPolyfill = ((): any => {
 			let next: IteratorResult<T>;
 			while (
 				(next = await IteratorNext(iterated, lastValue)) &&
-				!ES2018.IteratorComplete(next)
+				!IteratorComplete(next)
 			) {
 				/** @type {T} */
-				let value: T = ES2018.IteratorValue(next);
+				let value: T = IteratorValue(next);
 
 				let mapped: U | PromiseLike<U>;
 				try {
-					mapped = ES2018.Call(mapper, undefined, [value]);
+					mapped = Call(mapper, undefined, [value]);
 				} catch (e) {
 					return AsyncIteratorClose(iterated, () => {
 						throw e;
@@ -1089,7 +1113,7 @@ const AsyncIterator: typeof $IteratorPolyfill = ((): any => {
 			filterer: (value: T) => unknown | PromiseLike<unknown>
 		): AsyncGenerator<T, undefined> {
 			let iterated = GetIteratorDirect(this);
-			if (!ES2018.IsCallable(filterer)) {
+			if (!IsCallable(filterer)) {
 				throw new $TypeError(inspect(filterer) + " is not a function");
 			}
 
@@ -1099,14 +1123,14 @@ const AsyncIterator: typeof $IteratorPolyfill = ((): any => {
 			let next: IteratorResult<T>;
 			while (
 				(next = await IteratorNext(iterated, lastValue)) &&
-				!ES2018.IteratorComplete(next)
+				!IteratorComplete(next)
 			) {
 				/** @type {T} */
-				let value: T = ES2018.IteratorValue(next);
+				let value: T = IteratorValue(next);
 
 				let selected;
 				try {
-					selected = ES2018.Call(filterer, undefined, [value]);
+					selected = Call(filterer, undefined, [value]);
 				} catch (e) {
 					return AsyncIteratorClose(iterated, () => {
 						throw e;
@@ -1121,7 +1145,7 @@ const AsyncIterator: typeof $IteratorPolyfill = ((): any => {
 					});
 				}
 
-				if (ES2018.ToBoolean(selected)) {
+				if (ToBoolean(selected)) {
 					try {
 						lastValue = yield value;
 					} catch (e) {
@@ -1144,7 +1168,7 @@ const AsyncIterator: typeof $IteratorPolyfill = ((): any => {
 			limit: number
 		): AsyncGenerator<T, undefined> {
 			let iterated = GetIteratorDirect(this);
-			let remaining = ES2018.ToInteger(limit);
+			let remaining = ToInteger(limit);
 			if (remaining < 0) {
 				throw new $RangeError("limit must be >= 0");
 			}
@@ -1155,12 +1179,12 @@ const AsyncIterator: typeof $IteratorPolyfill = ((): any => {
 				remaining -= 1;
 
 				let next = await IteratorNext(iterated, lastValue);
-				if (ES2018.IteratorComplete(next)) {
+				if (IteratorComplete(next)) {
 					return;
 				}
 
 				try {
-					lastValue = yield ES2018.IteratorValue(next);
+					lastValue = yield IteratorValue(next);
 				} catch (e) {
 					AsyncIteratorClose(iterated, () => {
 						throw e;
@@ -1180,7 +1204,7 @@ const AsyncIterator: typeof $IteratorPolyfill = ((): any => {
 			limit: number
 		): AsyncGenerator<T, undefined> {
 			let iterated = GetIteratorDirect(this);
-			let remaining = ES2018.ToInteger(limit);
+			let remaining = ToInteger(limit);
 			if (remaining < 0) {
 				throw new $RangeError("limit must be >= 0");
 			}
@@ -1188,7 +1212,7 @@ const AsyncIterator: typeof $IteratorPolyfill = ((): any => {
 			while (remaining > 0) {
 				remaining -= 1;
 				let next = await IteratorNext(iterated);
-				if (ES2018.IteratorComplete(next)) {
+				if (IteratorComplete(next)) {
 					return;
 				}
 			}
@@ -1199,10 +1223,10 @@ const AsyncIterator: typeof $IteratorPolyfill = ((): any => {
 			let next: IteratorResult<T>;
 			while (
 				(next = await IteratorNext(iterated, lastValue)) &&
-				!ES2018.IteratorComplete(next)
+				!IteratorComplete(next)
 			) {
 				try {
-					lastValue = yield ES2018.IteratorValue(next);
+					lastValue = yield IteratorValue(next);
 				} catch (e) {
 					return AsyncIteratorClose(iterated, () => {
 						throw e;
@@ -1229,10 +1253,10 @@ const AsyncIterator: typeof $IteratorPolyfill = ((): any => {
 			let next: IteratorResult<T>;
 			while (
 				(next = await IteratorNext(iterated, lastValue)) &&
-				!ES2018.IteratorComplete(next)
+				!IteratorComplete(next)
 			) {
 				/** @type {T} */
-				let value: T = ES2018.IteratorValue(next);
+				let value: T = IteratorValue(next);
 
 				let pair: [number, T] = [index, value];
 				index += 1;
@@ -1264,7 +1288,7 @@ const AsyncIterator: typeof $IteratorPolyfill = ((): any => {
 				| Promise<Iterable<U> | AsyncIterable<U>>
 		): AsyncGenerator<U, undefined> {
 			let iterated = GetIteratorDirect(this);
-			if (!ES2018.IsCallable(mapper)) {
+			if (!IsCallable(mapper)) {
 				throw new $TypeError(inspect(mapper) + " is not a function");
 			}
 
@@ -1273,10 +1297,10 @@ const AsyncIterator: typeof $IteratorPolyfill = ((): any => {
 
 			while (
 				(next = await IteratorNext(iterated)) &&
-				!ES2018.IteratorComplete(next)
+				!IteratorComplete(next)
 			) {
 				/** @type {T} */
-				let value: T = ES2018.IteratorValue(next);
+				let value: T = IteratorValue(next);
 
 				/** @type {Iterable<U> | AsyncIterable<U> | Promise<Iterable<U> | AsyncIterable<U>>} */
 				let mapped:
@@ -1285,7 +1309,7 @@ const AsyncIterator: typeof $IteratorPolyfill = ((): any => {
 					| Promise<Iterable<U> | AsyncIterable<U>>;
 
 				try {
-					mapped = ES2018.Call(mapper, undefined, [value]);
+					mapped = Call(mapper, undefined, [value]);
 				} catch (e) {
 					return AsyncIteratorClose(iterated, () => {
 						throw e;
@@ -1308,9 +1332,9 @@ const AsyncIterator: typeof $IteratorPolyfill = ((): any => {
 				let innerNext: IteratorResult<U>;
 				while (
 					(innerNext = await IteratorNext(innerIterator)) &&
-					!ES2018.IteratorComplete(innerNext)
+					!IteratorComplete(innerNext)
 				) {
-					yield ES2018.IteratorValue(innerNext);
+					yield IteratorValue(innerNext);
 				}
 			}
 		},
@@ -1336,7 +1360,7 @@ const AsyncIterator: typeof $IteratorPolyfill = ((): any => {
 			return $NewPromise()
 				.then(() => {
 					iterated = GetIteratorDirect(this);
-					if (!ES2018.IsCallable(reducer)) {
+					if (!IsCallable(reducer)) {
 						throw new $TypeError(
 							inspect(reducer) + " is not a function"
 						);
@@ -1346,12 +1370,12 @@ const AsyncIterator: typeof $IteratorPolyfill = ((): any => {
 						return $NewPromise()
 							.then(() => IteratorNext(iterated))
 							.then((next: IteratorResult<any>) => {
-								if (ES2018.IteratorComplete(next)) {
+								if (IteratorComplete(next)) {
 									throw new $TypeError(
 										"reduce of empty iterator with no initial value"
 									);
 								}
-								return ES2018.IteratorValue(next);
+								return IteratorValue(next);
 							});
 					} else {
 						return initialValue;
@@ -1367,21 +1391,20 @@ const AsyncIterator: typeof $IteratorPolyfill = ((): any => {
 				return $NewPromise()
 					.then(() => IteratorNext(iterated))
 					.then((next: IteratorResult<T>) => {
-						if (ES2018.IteratorComplete(next)) {
+						if (IteratorComplete(next)) {
 							return accumulator;
 						}
 
-						let value = ES2018.IteratorValue(next);
+						let value = IteratorValue(next);
 
 						/** @type {U | PromiseLike<U>} */
 						let result: U | PromiseLike<U>;
 
 						try {
-							result = ES2018.Call<typeof reducer>(
-								reducer,
-								undefined,
-								[accumulator, value]
-							);
+							result = Call(reducer, undefined, [
+								accumulator,
+								value,
+							]);
 						} catch (e) {
 							return AsyncIteratorClose(iterated, () => {
 								throw e;
@@ -1427,11 +1450,11 @@ const AsyncIterator: typeof $IteratorPolyfill = ((): any => {
 				return $NewPromise()
 					.then(() => IteratorNext(iterated))
 					.then((next: IteratorResult<T>) => {
-						if (ES2018.IteratorComplete(next)) {
+						if (IteratorComplete(next)) {
 							return items;
 						}
 
-						items.push(ES2018.IteratorValue(next));
+						items.push(IteratorValue(next));
 
 						return __recursive(items);
 					});
@@ -1454,7 +1477,7 @@ const AsyncIterator: typeof $IteratorPolyfill = ((): any => {
 			return $NewPromise()
 				.then(() => {
 					iterated = GetIteratorDirect(this);
-					if (!ES2018.IsCallable(fn)) {
+					if (!IsCallable(fn)) {
 						throw new $TypeError(
 							inspect(fn) + " is not a function"
 						);
@@ -1467,25 +1490,25 @@ const AsyncIterator: typeof $IteratorPolyfill = ((): any => {
 				return $NewPromise()
 					.then(() => IteratorNext(iterated))
 					.then((next: IteratorResult<T>) => {
-						if (ES2018.IteratorComplete(next)) {
+						if (IteratorComplete(next)) {
 							return;
 						}
 
 						/** @type {T} */
-						let value: T = ES2018.IteratorValue(next);
+						let value: T = IteratorValue(next);
 
 						/** @type {void | PromiseLike<void>} */
 						let r: void | PromiseLike<void>;
 
 						try {
-							r = ES2018.Call(fn, undefined, [value]);
+							r = Call(fn, undefined, [value]);
 						} catch (e) {
 							return AsyncIteratorClose(iterated, () => {
 								throw e;
 							});
 						}
 
-						return $NewPromise(r).then(__recursive, e => {
+						return $NewPromise(r).then(__recursive, (e) => {
 							return AsyncIteratorClose(iterated, () => {
 								throw e;
 							});
@@ -1510,7 +1533,7 @@ const AsyncIterator: typeof $IteratorPolyfill = ((): any => {
 			return $NewPromise()
 				.then(() => {
 					iterated = GetIteratorDirect(this);
-					if (!ES2018.IsCallable(fn)) {
+					if (!IsCallable(fn)) {
 						throw new $TypeError(
 							inspect(fn) + " is not a function"
 						);
@@ -1523,17 +1546,17 @@ const AsyncIterator: typeof $IteratorPolyfill = ((): any => {
 				return $NewPromise()
 					.then(() => IteratorNext(iterated))
 					.then((next: IteratorResult<T>) => {
-						if (ES2018.IteratorComplete(next)) {
+						if (IteratorComplete(next)) {
 							return false;
 						}
 
 						/** @type {T} */
-						let value: T = ES2018.IteratorValue(next);
+						let value: T = IteratorValue(next);
 
 						/** @type {unknown} */
 						let result: unknown;
 						try {
-							result = ES2018.Call(fn, undefined, [value]);
+							result = Call(fn, undefined, [value]);
 						} catch (e) {
 							return AsyncIteratorClose(iterated, () => {
 								throw e;
@@ -1541,9 +1564,9 @@ const AsyncIterator: typeof $IteratorPolyfill = ((): any => {
 						}
 
 						return $NewPromise(result).then(
-							result =>
-								ES2018.ToBoolean(result) ? true : __recursive(),
-							e => {
+							(result) =>
+								ToBoolean(result) ? true : __recursive(),
+							(e) => {
 								return AsyncIteratorClose(iterated, () => {
 									throw e;
 								});
@@ -1569,7 +1592,7 @@ const AsyncIterator: typeof $IteratorPolyfill = ((): any => {
 			return $NewPromise()
 				.then(() => {
 					iterated = GetIteratorDirect(this);
-					if (!ES2018.IsCallable(fn)) {
+					if (!IsCallable(fn)) {
 						throw new $TypeError(
 							inspect(fn) + " is not a function"
 						);
@@ -1582,17 +1605,17 @@ const AsyncIterator: typeof $IteratorPolyfill = ((): any => {
 				return $NewPromise()
 					.then(() => IteratorNext(iterated))
 					.then((next: IteratorResult<T>) => {
-						if (ES2018.IteratorComplete(next)) {
+						if (IteratorComplete(next)) {
 							return true;
 						}
 
 						/** @type {T} */
-						let value: T = ES2018.IteratorValue(next);
+						let value: T = IteratorValue(next);
 
 						/** @type {unknown} */
 						let result: unknown;
 						try {
-							result = ES2018.Call(fn, undefined, [value]);
+							result = Call(fn, undefined, [value]);
 						} catch (e) {
 							return AsyncIteratorClose(iterated, () => {
 								throw e;
@@ -1600,11 +1623,9 @@ const AsyncIterator: typeof $IteratorPolyfill = ((): any => {
 						}
 
 						return $NewPromise(result).then(
-							result =>
-								ES2018.ToBoolean(result)
-									? __recursive()
-									: false,
-							e => {
+							(result) =>
+								ToBoolean(result) ? __recursive() : false,
+							(e) => {
 								return AsyncIteratorClose(iterated, () => {
 									throw e;
 								});
@@ -1630,7 +1651,7 @@ const AsyncIterator: typeof $IteratorPolyfill = ((): any => {
 			return $NewPromise()
 				.then(() => {
 					iterated = GetIteratorDirect(this);
-					if (!ES2018.IsCallable(fn)) {
+					if (!IsCallable(fn)) {
 						throw new $TypeError(
 							inspect(fn) + " is not a function"
 						);
@@ -1643,17 +1664,17 @@ const AsyncIterator: typeof $IteratorPolyfill = ((): any => {
 				return $NewPromise()
 					.then(() => IteratorNext(iterated))
 					.then((next: IteratorResult<T>) => {
-						if (ES2018.IteratorComplete(next)) {
+						if (IteratorComplete(next)) {
 							return undefined;
 						}
 
 						/** @type {T} */
-						let value: T = ES2018.IteratorValue(next);
+						let value: T = IteratorValue(next);
 
 						/** @type {unknown} */
 						let result: unknown;
 						try {
-							result = ES2018.Call(fn, undefined, [value]);
+							result = Call(fn, undefined, [value]);
 						} catch (e) {
 							return AsyncIteratorClose(iterated, () => {
 								throw e;
@@ -1661,11 +1682,9 @@ const AsyncIterator: typeof $IteratorPolyfill = ((): any => {
 						}
 
 						return $NewPromise(result).then(
-							result =>
-								ES2018.ToBoolean(result)
-									? value
-									: __recursive(),
-							e => {
+							(result) =>
+								ToBoolean(result) ? value : __recursive(),
+							(e) => {
 								return AsyncIteratorClose(iterated, () => {
 									throw e;
 								});
@@ -1677,7 +1696,10 @@ const AsyncIterator: typeof $IteratorPolyfill = ((): any => {
 	});
 
 	if ($toStringTag) {
-		ES2018.OrdinaryDefineOwnProperty(
+		DefineOwnProperty(
+			IsDataDescriptor,
+			SameValue,
+			FromPropertyDescriptor,
 			AsyncIterator.prototype,
 			$toStringTag,
 			{
@@ -1690,7 +1712,7 @@ const AsyncIterator: typeof $IteratorPolyfill = ((): any => {
 	if ($AsyncIteratorProto) {
 		$setProto!(AsyncIterator.prototype, $AsyncIteratorProto);
 
-		ES2018.CreateMethodProperty(
+		CreateMethodProperty(
 			AsyncIterator.prototype,
 			$asyncIterator!,
 			// @ts-ignore
@@ -1701,7 +1723,7 @@ const AsyncIterator: typeof $IteratorPolyfill = ((): any => {
 		// a polyfill installs Symbol.asyncIterator before ES-Abstract
 		// has been initialised.
 
-		ES2018.CreateMethodProperty(
+		CreateMethodProperty(
 			AsyncIterator.prototype,
 			$asyncIterator,
 			function $asyncIterator(this: any) {
@@ -1720,14 +1742,13 @@ const AsyncIterator: typeof $IteratorPolyfill = ((): any => {
 		} catch {}
 	}
 
-	return AsyncIterator;
+	// prettier-ignore
+	return /** @type {any} */ (AsyncIterator);
 })();
 
-export { AsyncIterator };
-
-const WrapForValidAsyncIteratorPrototype = ES2018.ObjectCreate(
-	Iterator.prototype
-);
+/** @type {import("./implementation.js").AsyncIterator<*>} */
+// prettier-ignore
+const WrapForValidAsyncIteratorPrototype: $AsyncIteratorPolyfill<any> = OrdinaryObjectCreate(AsyncIterator.prototype);
 define(WrapForValidAsyncIteratorPrototype, {
 	next(value?: any): Promise<IteratorResult<any, any>> {
 		const O = this;
@@ -1764,10 +1785,10 @@ define(WrapForValidAsyncIteratorPrototype, {
 		const iterator: IteratorRecord<
 			Iterator<any> | AsyncIterator<any>
 		> = SLOT.get(O, "[[AsyncIterated]]");
-		const _throw = ES2018.GetMethod(iterator["[[Iterator]]"], "throw");
+		const _throw = GetMethod(iterator["[[Iterator]]"], "throw");
 		if (_throw === undefined) {
 			throw v;
 		}
-		return $NewPromise(ES2018.Call(_throw, iterator, [v]));
+		return $NewPromise(Call(_throw, iterator, [v]));
 	},
 });

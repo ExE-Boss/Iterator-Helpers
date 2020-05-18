@@ -6,6 +6,7 @@
 		"outDir": ".."
 	},
 	"files": [
+		"types.d.ts",
 		"implementation.ts"
 	]
 }
