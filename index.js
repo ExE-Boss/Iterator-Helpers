@@ -1,10 +1,10 @@
 "use strict";
 var define = require("define-properties");
-var assign = require("es-abstract/helpers/assign");
+var assign = require("es-abstract/helpers/assign.js");
 
-var implementation = require("./implementation");
-var getPolyfill = require("./polyfill");
-var shim = require("./shim");
+var implementation = require("./implementation.js");
+var getPolyfill = require("./polyfill.js");
+var shim = require("./shim.js");
 
 assign(exports, getPolyfill());
 
@@ -13,11 +13,3 @@ define(exports, {
 	implementation: implementation,
 	shim: shim
 });
-
-if (define.supportsDescriptors && Object.defineProperty) {
-	// @ts-ignore
-	Object.defineProperty(exports, "__esModule", { value: true });
-} else {
-	// @ts-ignore
-	exports.__esModule = true;
-}

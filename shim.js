@@ -1,41 +1,40 @@
 "use strict";
-var ES2018 = require("es-abstract/es2018");
-var GetIntrinsic = require("es-abstract/GetIntrinsic");
-var forEach = require("es-abstract/helpers/forEach");
-/** @type {typeof globalThis & {[x: string]: any}} */
+var GetIntrinsic = require("es-abstract/GetIntrinsic.js");
+var DefinePropertyOrThrow = require("es-abstract/2018/DefinePropertyOrThrow.js");
+var IsExtensible = require("es-abstract/2018/IsExtensible.js");
+var OrdinaryGetOwnProperty = require("es-abstract/2018/OrdinaryGetOwnProperty.js");
+
+var OwnPropertyKeys = require("es-abstract/helpers/OwnPropertyKeys.js");
+var forEach = require("es-abstract/helpers/forEach.js");
+
+/** @type {{[x: string]: any}} */
 var global = require("globalthis")();
 var define = require("define-properties");
+var has = require("has");
 
-var $IteratorProto = GetIntrinsic("%IteratorPrototype%", true);
-var $AsyncIteratorProto = GetIntrinsic("%AsyncIteratorPrototype%", true);
+var $IteratorPrototype = GetIntrinsic("%IteratorPrototype%", true);
+var $AsyncIteratorPrototype = GetIntrinsic("%AsyncIteratorPrototype%", true);
 
 var getPolyfill = require("./polyfill");
-
-/** @typedef {NonNullable<Parameters<typeof Object.create>[0]>} obj */
 
 /**
  * Copies all own properties from `target` to `source`
  * that don't exist on `target`.
  *
- * @template {obj} T
- * @template {obj} S
+ * @template {object} T
+ * @template {object} S
  * @param {T} target
  * @param {S} source
  * @return {T & Omit<S, keyof T>}
  */
 function CopyOwnProperties(target, source) {
-	forEach(ES2018.GetOwnPropertyKeys(source, "String"), function(key) {
-		var desc = ES2018.OrdinaryGetOwnProperty(source, key);
-		if (desc && !ES2018.HasOwnProperty(target, key)) {
-			ES2018.OrdinaryDefineOwnProperty(target, key, desc);
-		}
-		// @ts-ignore
-		delete source[key];
-	});
-	forEach(ES2018.GetOwnPropertyKeys(source, "Symbol"), function(key) {
-		var desc = ES2018.OrdinaryGetOwnProperty(source, key);
-		if (desc && !ES2018.HasOwnProperty(target, key)) {
-			ES2018.OrdinaryDefineOwnProperty(target, key, desc);
+	if (!IsExtensible(target)) {
+		return /** @type {*} */ (source);
+	}
+	forEach(OwnPropertyKeys(target), function (key) {
+		var desc = OrdinaryGetOwnProperty(source, key);
+		if (desc && !has(target, key)) {
+			DefinePropertyOrThrow(target, key, desc);
 		}
 		// @ts-ignore
 		delete source[key];
@@ -44,50 +43,54 @@ function CopyOwnProperties(target, source) {
 }
 
 module.exports = function shimIteratorHelpers() {
-	var polyfill = getPolyfill(),
-		forceSync = false,
-		forceAsync = false,
-		IteratorPolyfill = polyfill.Iterator,
-		IteratorPolyfillProto = IteratorPolyfill.prototype,
-		AsyncIteratorPolyfill = polyfill.AsyncIterator,
-		AsyncIteratorPolyfillProto = AsyncIteratorPolyfill.prototype;
+	var polyfill = getPolyfill();
+	var forceSync = false;
+	var forceAsync = false;
+	var IteratorPolyfill = polyfill.Iterator;
+	var IteratorPolyfillPrototype = IteratorPolyfill.prototype;
+	var AsyncIteratorPolyfill = polyfill.AsyncIterator;
+	var AsyncIteratorPolyfillPrototype = AsyncIteratorPolyfill.prototype;
 
-	if ("Iterator" in global && global.Iterator !== IteratorPolyfill) {
+	if (has(global, "Iterator") && global.Iterator !== IteratorPolyfill) {
 		forceSync = true;
 	}
-	if ("AsyncIterator" in global && global.AsyncIterator !== AsyncIteratorPolyfill) {
+	if (has(global, "AsyncIterator") && global.AsyncIterator !== AsyncIteratorPolyfill) {
 		forceAsync = true;
 	}
 
 	// Make `Iterator.prototype` point to the correct prototype.
 	if (
-		$IteratorProto &&
-		$IteratorProto !== IteratorPolyfillProto
+		$IteratorPrototype &&
+		$IteratorPrototype !== IteratorPolyfillPrototype
 	) {
-		// @ts-ignore
-		IteratorPolyfill.prototype = CopyOwnProperties(
-			$IteratorProto,
-			IteratorPolyfillProto
-		);
+		DefinePropertyOrThrow(IteratorPolyfill, "prototype", {
+			"[[Value]]": CopyOwnProperties(
+				$IteratorPrototype,
+				IteratorPolyfillPrototype
+			),
+			"[[Writable]]": false
+		});
 	}
 
 	// Make `AsyncIterator.prototype` point to the correct prototype.
 	if (
-		$AsyncIteratorProto &&
-		$AsyncIteratorProto !== AsyncIteratorPolyfillProto
+		$AsyncIteratorPrototype &&
+		$AsyncIteratorPrototype !== AsyncIteratorPolyfillPrototype
 	) {
-		// @ts-ignore
-		AsyncIteratorPolyfill.prototype = CopyOwnProperties(
-			$AsyncIteratorProto,
-			AsyncIteratorPolyfillProto
-		);
+		DefinePropertyOrThrow(AsyncIteratorPolyfill, "prototype", {
+			"[[Value]]": CopyOwnProperties(
+				$AsyncIteratorPrototype,
+				AsyncIteratorPolyfillPrototype
+			),
+			"[[Writable]]": false
+		});
 	}
 
 	define(global, polyfill, {
-		Iterator: function() {
+		Iterator: function () {
 			return forceSync;
 		},
-		AsyncIterator: function() {
+		AsyncIterator: function () {
 			return forceAsync;
 		}
 	});

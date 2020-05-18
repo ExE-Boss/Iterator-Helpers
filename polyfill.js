@@ -1,80 +1,37 @@
 "use strict";
-var ES = require("es-abstract");
-var GetIntrinsic = require("es-abstract/GetIntrinsic");
-var $getProto = require("es-abstract/helpers/getProto");
-/** @type {typeof globalThis & {[x: string]: any}} */
+var GetIntrinsic = require("es-abstract/GetIntrinsic.js");
+var IsConstructor = require("es-abstract/2018/IsConstructor.js");
+var Type = require("es-abstract/2018/Type.js");
+
+/** @type {{[x: string]: any}} */
 var global = require("globalthis")();
 
-var $IteratorProto = GetIntrinsic("%IteratorPrototype%", true);
-var $AsyncIteratorProto = GetIntrinsic("%AsyncIteratorPrototype%", true);
+var $IteratorPrototype = GetIntrinsic("%IteratorPrototype%", true);
+var $AsyncIteratorPrototype = GetIntrinsic("%AsyncIteratorPrototype%", true);
 
-var implementation = require("./implementation");
+var implementation = require("./implementation.js");
 
-/** @typedef {NonNullable<Parameters<typeof Object.create>[0]>} obj */
-
-/**
- * Determines whether `obj` has `proto` in its prototype chain.
- */
-var hasProto = (function() {
-	/**
-	 * @param {obj} obj
-	 * @param {obj} proto
-	 *
-	 * @return {boolean}
-	 */
-	function hasProto(obj, proto) {
-		if (obj === proto) {
-			return true;
-		}
-		if ($getProto === null) {
-			// Old IE
-			if (typeof proto.constructor !== "function") {
-				return false;
-			}
-			try {
-				return obj instanceof proto.constructor;
-			} catch (e) {
-				return false;
-			}
-		}
-		return hasProto($getProto(obj), proto);
-	}
-
-	return /** @param {any} obj @param {any} proto */ function(obj, proto) {
-		if (ES.Type(obj) !== "Object") {
-			return false;
-		}
-		if (ES.Type(proto) !== "Object") {
-			return false;
-		}
-		return hasProto(obj, proto);
-	};
-})();
-
-/**
- * @return {typeof import('./implementation')}
- */
+/** @return {{
+	readonly Iterator: typeof implementation.Iterator;
+	readonly AsyncIterator: typeof implementation.AsyncIterator;
+}} */
 module.exports = function getPolyfill() {
-	var Iterator, AsyncIterator;
+	var Iterator = global.Iterator;
+	var AsyncIterator = global.AsyncIterator;
+
 	if (
-		ES.Type($IteratorProto) === "Object" &&
-		ES.Type(global.Iterator) === "Object" &&
-		// According to the specification `Iterator.prototype` extends or is `%IteratorPrototype%`
-		hasProto(global.Iterator.prototype, $IteratorProto)
+		Type($IteratorPrototype) !== "Object" ||
+		!IsConstructor(Iterator) ||
+		Iterator.prototype !== $IteratorPrototype
 	) {
-		Iterator = global.Iterator;
-	} else {
 		Iterator = implementation.Iterator;
 	}
 
 	if (
-		ES.Type($AsyncIteratorProto) === "Object" &&
-		ES.Type(global.AsyncIterator) === "Object" &&
-		// According to the specification `AsyncIterator.prototype` extends or is `%AsyncIteratorPrototype%`
-		hasProto(global.AsyncIterator.prototype, $AsyncIteratorProto)
+		Type($AsyncIteratorPrototype) !== "Object" ||
+		!IsConstructor(AsyncIterator) ||
+		AsyncIterator.prototype !== $AsyncIteratorPrototype
 	) {
-		AsyncIterator = global.AsyncIterator;
-	} else {
 		AsyncIterator = implementation.AsyncIterator;
 	}
 

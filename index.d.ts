@@ -1,4 +1,4 @@
-import { Iterator, AsyncIterator } from "./implementation";
+import { Iterator, AsyncIterator } from "./implementation.js";
 export { Iterator, AsyncIterator };
 
 export interface IteratorHelpers {
@@ -6,6 +6,6 @@ export interface IteratorHelpers {
 	readonly AsyncIterator: typeof AsyncIterator;
 }
 
-export const getPolyfill: typeof import("./polyfill");
-export const implementation: typeof import("./implementation");
-export const shim: typeof import("./shim");
+export const getPolyfill: typeof import("./polyfill.js");
+export const implementation: typeof import("./implementation.js");
+export const shim: typeof import("./shim.js");

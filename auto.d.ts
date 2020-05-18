@@ -1,4 +1,4 @@
-import { Iterator as $Iterator, AsyncIterator as $AsyncIterator } from "./implementation";
+import { Iterator as $Iterator, AsyncIterator as $AsyncIterator } from "./implementation.js";
 
 type $IteratorConstructor = typeof $Iterator;
 type $AsyncIteratorConstructor = typeof $AsyncIterator;

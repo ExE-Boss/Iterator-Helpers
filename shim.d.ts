@@ -1,4 +1,4 @@
-import { IteratorHelpers } from "./index";
+import getPolyfill = require("./polyfill.js");
 
-declare function shimIteratorHelpers(): IteratorHelpers;
+declare function shimIteratorHelpers(): ReturnType<typeof getPolyfill>;
 export = shimIteratorHelpers;
