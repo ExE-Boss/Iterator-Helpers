@@ -81,34 +81,36 @@ const $PromiseProto_then: <T, TReturn = T, TCatch = never>(
 /** @type {undefined} */
 var undefined: undefined;
 
-type SetThisType<T, F> = F extends (...args: infer A) => infer R
-	? (this: T, ...args: A) => R
-	: F;
+// prettier-ignore
+type IteratorLike<T, TReturn = any, TNext = unknown> = globalThis.Iterator<T, TReturn, TNext>;
+// prettier-ignore
+type AsyncIteratorLike<T, TReturn = any, TNext = unknown> = globalThis.AsyncIterator<T, TReturn, TNext>;
 
 interface IteratorRecord<
-	I extends Iterator<any, any, any> | AsyncIterator<any, any, any>
+	I extends IteratorLike<any, any, any> | AsyncIteratorLike<any, any, any>
 > {
 	"[[Iterator]]": I;
-	"[[NextMethod]]": SetThisType<I, I["next"]>;
+	"[[NextMethod]]": I["next"];
 	"[[Done]]": boolean;
 }
 
-function GetIterator<I extends Iterator<unknown, unknown, unknown>>(obj: {
+function GetIterator<I extends IteratorLike<unknown, unknown, unknown>>(obj: {
 	[Symbol.iterator](): I;
 }): IteratorRecord<I>;
-function GetIterator<I extends Iterator<unknown, unknown, unknown>>(
+function GetIterator<I extends IteratorLike<unknown, unknown, unknown>>(
 	obj: { [Symbol.iterator](): I },
 	hint: "sync",
 ): IteratorRecord<I>;
-function GetIterator<O, I extends Iterator<unknown, unknown, unknown>>(
+function GetIterator<O, I extends IteratorLike<unknown, unknown, unknown>>(
 	obj: O,
 	hint: "sync",
 	method: (this: O) => I,
 ): IteratorRecord<I>;
 function GetIterator<
+	// prettier-ignore
 	O extends
-		| { [Symbol.asyncIterator](): AsyncIterator<unknown, unknown, unknown> }
-		| { [Symbol.iterator](): Iterator<unknown, unknown, unknown> }
+		| { [Symbol.asyncIterator](): AsyncIteratorLike<unknown, unknown, unknown> }
+		| { [Symbol.iterator](): IteratorLike<unknown, unknown, unknown> }
 >(
 	obj: O,
 	hint: "async",
@@ -116,27 +118,27 @@ function GetIterator<
 	O extends { [Symbol.asyncIterator](): infer I }
 		? I
 		: O extends {
-				[Symbol.iterator](): Iterator<
+				[Symbol.iterator](): IteratorLike<
 					infer T,
 					infer TReturn,
 					infer TNext
 				>;
 		  }
-		? AsyncIterator<T, TReturn, TNext>
-		: AsyncIterator<unknown, unknown, unknown>
+		? AsyncIteratorLike<T, TReturn, TNext>
+		: AsyncIteratorLike<unknown, unknown, unknown>
 >;
 function GetIterator<
 	O,
 	I extends
-		| Iterator<unknown, unknown, unknown>
-		| AsyncIterator<unknown, unknown, unknown>
+		| IteratorLike<unknown, unknown, unknown>
+		| AsyncIteratorLike<unknown, unknown, unknown>
 >(
 	obj: O,
 	hint: "async",
 	method: (this: O) => I,
 ): IteratorRecord<
-	I extends Iterator<infer T, infer TReturn, infer TNext>
-		? AsyncIterator<T, TReturn, TNext>
+	I extends IteratorLike<infer T, infer TReturn, infer TNext>
+		? AsyncIteratorLike<T, TReturn, TNext>
 		: I
 >;
 
@@ -146,13 +148,13 @@ function GetIterator<
  */
 
 /**
- * @template {Iterator<any, any, any> | AsyncIterator<any, any, any>} I
+ * @template {globalThis.Iterator<any, any, any> | globalThis.AsyncIterator<any, any, any>} I
  * @typedef {{"[[Iterator]]": I, "[[NextMethod]]": SetThisType<I, I["next"]>, "[[Done]]": boolean}} IteratorRecord
  */
 
 /**
  * @template O
- * @template {Iterator<any, any, any> | AsyncIterator<any, any, any>} I
+ * @template {globalThis.Iterator<any, any, any> | globalThis.AsyncIterator<any, any, any>} I
  * @param {O} obj The iterable
  * @param {"sync" | "async"} [hint] Whether to use a synchronous or asynchronous iterator.
  * @param {(this: O) => I} [method] The method to use to get the `Iterator`
@@ -161,7 +163,7 @@ function GetIterator<
 // https://ecma-international.org/ecma-262/9.0/#sec-getiterator
 function GetIterator<
 	O extends object,
-	I extends Iterator<any, any, any> | AsyncIterator<any, any, any>
+	I extends IteratorLike<any, any, any> | AsyncIteratorLike<any, any, any>
 >(obj: O, hint?: "sync" | "async", method?: (this: O) => I): IteratorRecord<I> {
 	var actualHint: "sync" | "async" = hint!;
 	if (arguments.length < 2) {
@@ -302,24 +304,23 @@ function promiseThenChain(executor?: () => any): Promise<any> {
 
 /**
  * @template T
- * @param {Iterator<any, any, any> | AsyncIterator<any, any, any> | IteratorRecord<Iterator<any, any, any> | AsyncIterator<any, any, any>>} iteratorRecord
+ * @param {
+	| IteratorRecord<globalThis.Iterator<any, any, any>>
+	| IteratorRecord<globalThis.AsyncIterator<any, any, any>>} iteratorRecord
  * @param {() => T | PromiseLike<T>} completion
  * @return {Promise<T>}
  */
 // https://ecma-international.org/ecma-262/9.0/#sec-asynciteratorclose
 function AsyncIteratorClose<T>(
 	iteratorRecord:
-		| Iterator<any, any, any>
-		| AsyncIterator<any, any, any>
-		| IteratorRecord<
-				Iterator<any, any, any> | AsyncIterator<any, any, any>
-		  >,
+		| IteratorRecord<IteratorLike<any, any, any>>
+		| IteratorRecord<AsyncIteratorLike<any, any, any>>,
 	completion: () => T | PromiseLike<T>,
 ): Promise<T> {
-	/** @type {Iterator<any, any, unknown> | AsyncIterator<any, any, unknown>} */
+	/** @type {globalThis.Iterator<any, any, unknown> | globalThis.AsyncIterator<any, any, unknown>} */
 	let iterator:
-		| Iterator<any, any, unknown>
-		| AsyncIterator<any, any, unknown>;
+		| IteratorLike<any, any, unknown>
+		| AsyncIteratorLike<any, any, unknown>;
 
 	if (hasOwnProperty(iteratorRecord, "[[Iterator]]")) {
 		if (Type(iteratorRecord["[[Iterator]]"]) !== "Object") {
@@ -373,14 +374,15 @@ function AsyncIteratorClose<T>(
 
 function GetIteratorDirect<O extends object>(
 	obj: O,
-	useIteratorRecord: true,
-): O extends Iterator<any, any, any> | AsyncIterator<any, any, any>
+): O extends IteratorLike<any, any, any> | AsyncIteratorLike<any, any, any>
 	? IteratorRecord<O>
 	: never;
 function GetIteratorDirect<O extends object>(
 	obj: O,
-	useIteratorRecord?: false,
-): O extends Iterator<any, any, any> | AsyncIterator<any, any, any> ? O : never;
+	useIteratorRecord: false,
+): O extends IteratorLike<any, any, any> | AsyncIteratorLike<any, any, any>
+	? O
+	: never;
 
 /**
  * @template O
@@ -389,7 +391,7 @@ function GetIteratorDirect<O extends object>(
  */
 function GetIteratorDirect<O extends object>(
 	obj: O,
-	useIteratorRecord?: boolean,
+	useIteratorRecord: boolean = true,
 ) {
 	if (Type(obj) !== "Object") {
 		throw new $TypeError("obj must be an Object, got " + Type(obj));
@@ -409,55 +411,51 @@ function GetIteratorDirect<O extends object>(
 }
 
 function IteratorStep<T>(
-	iterator: Iterator<T> | IteratorRecord<Iterator<T>>,
+	iterator: IteratorLike<T> | IteratorRecord<IteratorLike<T>>,
 ): IteratorYieldResult<T> | false;
 function IteratorStep<T, TNext = undefined>(
-	iterator: Iterator<T, any, TNext> | IteratorRecord<Iterator<T, any, TNext>>,
+	iterator:
+		| IteratorLike<T, any, TNext>
+		| IteratorRecord<IteratorLike<T, any, TNext>>,
 	value: TNext,
 ): IteratorYieldResult<T> | false;
 
 /**
  * @template T, TReturn, TNext
- * @param {Iterator<T, TReturn, TNext> | IteratorRecord<Iterator<T, TReturn, TNext>>} iterator
+ * @param {globalThis.Iterator<T, TReturn, TNext> | IteratorRecord<globalThis.Iterator<T, TReturn, TNext>>} iterator
  * @param {TNext} [value]
  * @return {false | IteratorYieldResult<T>}
  */
 function IteratorStep<T, TReturn, TNext>(
 	iterator:
-		| Iterator<T, TReturn, TNext>
-		| IteratorRecord<Iterator<T, TReturn, TNext>>,
+		| IteratorLike<T, TReturn, TNext>
+		| IteratorRecord<IteratorLike<T, TReturn, TNext>>,
 	value?: TNext,
 ): false | IteratorYieldResult<T> {
 	/** @type {IteratorResult<T, TReturn>} */
 	let result: IteratorResult<T, TReturn>;
+	let iteratorRecord = iterator;
+	if (!hasOwnProperty(iteratorRecord, "[[Iterator]]")) {
+		iteratorRecord = GetIteratorDirect(iterator);
+	}
+
 	if (arguments.length > 1) {
-		result = IteratorNext(iterator, value);
+		result = IteratorNext(iteratorRecord, value);
 	} else {
-		result = IteratorNext(iterator);
+		result = IteratorNext(iteratorRecord);
 	}
 	let done = IteratorComplete(result);
 	return done === true ? false : (result as IteratorYieldResult<T>);
 }
 
 function IteratorNext<T, TReturn = unknown, TNext = undefined>(
-	iteratorRecord:
-		| Iterator<T, TReturn, TNext>
-		| IteratorRecord<Iterator<T, TReturn, TNext>>,
+	iteratorRecord: IteratorRecord<IteratorLike<T, TReturn, TNext>>,
 	value?: TNext,
 ): IteratorResult<T, TReturn>;
 function IteratorNext<T, TReturn = unknown, TNext = undefined>(
 	iteratorRecord:
-		| AsyncIterator<T, TReturn, TNext>
-		| IteratorRecord<AsyncIterator<T, TReturn, TNext>>,
-	value?: TNext,
-): Promise<IteratorResult<T, TReturn>>;
-function IteratorNext<T, TReturn = unknown, TNext = undefined>(
-	iteratorRecord:
-		| Iterator<T, TReturn, TNext>
-		| AsyncIterator<T, TReturn, TNext>
-		| IteratorRecord<
-				Iterator<T, TReturn, TNext> | AsyncIterator<T, TReturn, TNext>
-		  >,
+		| IteratorRecord<IteratorLike<T, TReturn, TNext>>
+		| IteratorRecord<AsyncIteratorLike<T, TReturn, TNext>>,
 	value?: TNext,
 ): IteratorResult<T, TReturn> | Promise<IteratorResult<T, TReturn>>;
 
@@ -468,38 +466,28 @@ function IteratorNext<T, TReturn = unknown, TNext = undefined>(
  * @return {IteratorResult<T, TReturn>}
  */
 function IteratorNext<T, TReturn = unknown, TNext = undefined>(
-	iterator:
-		| {
-				next(
-					value?: TNext,
-				):
-					| IteratorResult<T, TReturn>
-					| Promise<IteratorResult<T, TReturn>>;
-		  }
-		| IteratorRecord<{ next(value?: TNext): any }>,
+	iterator: IteratorRecord<{ next(value?: TNext): any }>,
 	value: TNext,
 ): IteratorResult<T, TReturn> | Promise<IteratorResult<T, TReturn>> {
-	let result: any;
-	if ("[[Iterator]]" in iterator) {
-		result = Call(
-			iterator["[[NextMethod]]"],
-			iterator["[[Iterator]]"],
-			arguments.length < 2 ? [] : [value],
-		);
-	} else {
-		result = Invoke(iterator, "next", arguments.length < 2 ? [] : [value]);
-	}
+	/** @type {any} */
+	let result: any = Call(
+		iterator["[[NextMethod]]"],
+		iterator["[[Iterator]]"],
+		arguments.length < 2 ? [] : [value],
+	);
 	if (Type(result) !== "Object") {
 		throw new $TypeError("iterator next must return an object");
 	}
 	return result;
 }
 
+function noop() {}
+
 const Iterator = (() => {
 	// @ts-ignore
 	/** @type {typeof import("./implementation.js").Iterator} */
 	// prettier-ignore
-	const Iterator: typeof $IteratorPolyfill = (
+	const IteratorConstructor: typeof $IteratorPolyfill = (
 		/** @constructor */
 		function Iterator() {
 			if (new.target === undefined || new.target === Iterator) {
@@ -510,24 +498,24 @@ const Iterator = (() => {
 		}
 	) as any;
 
-	const IteratorPrototype = Iterator.prototype;
-	define(Iterator, {
+	const IteratorPrototype = IteratorConstructor.prototype;
+	define(IteratorConstructor, {
 		/**
 		 * @template T
-		 * @param {Iterable<T> | Iterator<T>} O
+		 * @param {Iterable<T> | globalThis.Iterator<T>} O
 		 * @return {import("./implementation.js").Iterator<T>}
 		 */
-		from<T>(O: Iterable<T> | Iterator<T>): $IteratorPolyfill<T> {
+		from<T>(O: Iterable<T> | IteratorLike<T>): $IteratorPolyfill<T> {
 			let usingIterator = getIteratorMethod(ES, O);
-			let iteratorRecord: IteratorRecord<Iterator<T>>;
+			let iteratorRecord: IteratorRecord<IteratorLike<T>>;
 			if (usingIterator !== undefined) {
-				iteratorRecord = GetIterator<Iterable<T>, Iterator<T>>(
+				iteratorRecord = GetIterator<Iterable<T>, IteratorLike<T>>(
 					O as Iterable<T>,
 					"sync",
 					usingIterator,
 				);
 				let hasInstance = OrdinaryHasInstance(
-					Iterator,
+					IteratorConstructor,
 					iteratorRecord["[[Iterator]]"],
 				);
 				if (hasInstance) {
@@ -537,12 +525,13 @@ const Iterator = (() => {
 					) as $IteratorPolyfill<T>;
 				}
 			} else {
-				iteratorRecord = GetIteratorDirect(O, true);
+				iteratorRecord = GetIteratorDirect(O);
 			}
 
 			/** @type {import("./implementation.js").Iterator<T>} */
 			let wrapper: $IteratorPolyfill<T> = OrdinaryObjectCreate(
 				WrapForValidIteratorPrototype,
+				// « [[Iterated]] »
 			);
 			SLOT.set(wrapper, "[[Iterated]]", iteratorRecord);
 			return wrapper;
@@ -551,17 +540,16 @@ const Iterator = (() => {
 
 	define(IteratorPrototype, {
 		/**
-		 * @template T
-		 * @template U
-		 * @this {Iterator<T>}
+		 * @template T, U
+		 * @this {globalThis.Iterator<T>}
 		 * @param {(value: T) => U} mapper
-		 * @return {Generator<U, undefined>}
+		 * @return {Generator<U, void>}
 		 */
 		*map<T, U>(
-			this: Iterator<T>,
+			this: IteratorLike<T>,
 			mapper: (value: T) => U,
-		): Generator<U, undefined> {
-			let iterated = GetIteratorDirect(this);
+		): Generator<U, void> {
+			let iterated = GetIteratorDirect(this, false);
 			if (!IsCallable(mapper)) {
 				throw new $TypeError(inspect(mapper) + " is not a function");
 			}
@@ -574,17 +562,8 @@ const Iterator = (() => {
 				/** @type {T} */
 				let value: T = IteratorValue(next);
 
-				/** @type {U} */
-				let mapped: U;
 				try {
-					mapped = Call(mapper, undefined, [value]);
-				} catch (e) {
-					return IteratorClose(iterated, () => {
-						throw e;
-					});
-				}
-				try {
-					lastValue = yield mapped;
+					lastValue = yield Call(mapper, undefined, [value]);
 				} catch (e) {
 					return IteratorClose(iterated, () => {
 						throw e;
@@ -595,15 +574,15 @@ const Iterator = (() => {
 
 		/**
 		 * @template T
-		 * @this {Iterator<T>}
+		 * @this {globalThis.Iterator<T>}
 		 * @param {(value: T) => unknown} filterer
-		 * @return {Generator<T, undefined>}
+		 * @return {Generator<T, void>}
 		 */
 		*filter<T>(
-			this: Iterator<T>,
+			this: IteratorLike<T>,
 			filterer: (value: T) => unknown,
-		): Generator<T, undefined> {
-			let iterated = GetIteratorDirect(this);
+		): Generator<T, void> {
+			let iterated = GetIteratorDirect(this, false);
 			if (!IsCallable(filterer)) {
 				throw new $TypeError(inspect(filterer) + " is not a function");
 			}
@@ -616,34 +595,26 @@ const Iterator = (() => {
 				/** @type {T} */
 				let value: T = IteratorValue(next);
 
-				let selected;
 				try {
-					selected = Call(filterer, undefined, [value]);
+					if (Call(filterer, undefined, [value])) {
+						lastValue = yield value;
+					}
 				} catch (e) {
 					return IteratorClose(iterated, () => {
 						throw e;
 					});
-				}
-				if (selected) {
-					try {
-						lastValue = yield value;
-					} catch (e) {
-						return IteratorClose(iterated, () => {
-							throw e;
-						});
-					}
 				}
 			}
 		},
 
 		/**
 		 * @template T
-		 * @this {Iterator<T>}
+		 * @this {globalThis.Iterator<T>}
 		 * @param {number} limit
-		 * @return {Generator<T, undefined>}
+		 * @return {Generator<T, void>}
 		 */
-		*take<T>(this: Iterator<T>, limit: number): Generator<T, undefined> {
-			let iterated = GetIteratorDirect(this);
+		*take<T>(this: IteratorLike<T>, limit: number): Generator<T, void> {
+			let iterated = GetIteratorDirect(this, false);
 			let remaining = ToInteger(limit);
 			if (remaining < 0) {
 				throw new $RangeError("limit must be >= 0");
@@ -665,16 +636,18 @@ const Iterator = (() => {
 					});
 				}
 			}
+
+			return IteratorClose(iterated, noop);
 		},
 
 		/**
 		 * @template T
-		 * @this {Iterator<T>}
+		 * @this {globalThis.Iterator<T>}
 		 * @param {number} limit
-		 * @return {Generator<T, undefined>}
+		 * @return {Generator<T, void>}
 		 */
-		*drop<T>(this: Iterator<T>, limit: number): Generator<T, undefined> {
-			let iterated = GetIteratorDirect(this);
+		*drop<T>(this: IteratorLike<T>, limit: number): Generator<T, void> {
+			let iterated = GetIteratorDirect(this, false);
 			let remaining = ToInteger(limit);
 			if (remaining < 0) {
 				throw new $RangeError("limit must be >= 0");
@@ -705,13 +678,13 @@ const Iterator = (() => {
 
 		/**
 		 * @template T
-		 * @this {Iterator<T>}
+		 * @this {globalThis.Iterator<T>}
 		 * @return {Generator<[number, T], undefined>}
 		 */
 		*asIndexedPairs<T>(
-			this: Iterator<T>,
+			this: IteratorLike<T>,
 		): Generator<[number, T], undefined> {
-			let iterated = GetIteratorDirect(this);
+			let iterated = GetIteratorDirect(this, false);
 			let index = 0;
 
 			/** @type {unknown} */
@@ -737,17 +710,16 @@ const Iterator = (() => {
 		},
 
 		/**
-		 * @template T
-		 * @template U
-		 * @this {Iterator<T>}
+		 * @template T, U
+		 * @this {globalThis.Iterator<T>}
 		 * @param {(value: T) => Iterable<U>} mapper
-		 * @return {Generator<U, undefined>}
+		 * @return {Generator<U, void>}
 		 */
 		*flatMap<T, U>(
-			this: Iterator<T>,
+			this: IteratorLike<T>,
 			mapper: (value: T) => Iterable<U>,
-		): Generator<U, undefined> {
-			let iterated = GetIteratorDirect(this);
+		): Generator<U, void> {
+			let iterated = GetIteratorDirect(this, false);
 			if (!IsCallable(mapper)) {
 				throw new $TypeError(inspect(mapper) + " is not a function");
 			}
@@ -758,38 +730,48 @@ const Iterator = (() => {
 				/** @type {T} */
 				let value: T = IteratorValue(next);
 
-				let mapped: Iterable<U>;
 				try {
-					mapped = Call(mapper, undefined, [value]);
+					const mapped = Call(mapper, undefined, [value]);
+					const innerIterator = GetIterator(mapped);
+
+					/** @type {false | IteratorYieldResult<U>} */
+					let innerNext: false | IteratorYieldResult<U>;
+					while ((innerNext = IteratorStep(innerIterator))) {
+						yield IteratorValue(innerNext);
+					}
 				} catch (e) {
 					return IteratorClose(iterated, () => {
 						throw e;
 					});
 				}
-
-				let innerIterator = GetIterator(mapped);
-				/** @type {false | IteratorYieldResult<U>} */
-				let innerNext: false | IteratorYieldResult<U>;
-				while ((innerNext = IteratorStep(innerIterator))) {
-					yield IteratorValue(innerNext);
-				}
 			}
 		},
 
 		/**
-		 * @template T
-		 * @template U
-		 * @this {Iterator<T>}
+		 * @template T, U
+		 * @this {globalThis.Iterator<T>}
 		 * @param {(accumulator: U, value: T) => U} reducer
 		 * @param {U} [initialValue]
 		 * @return {U}
-		 */
+		 * @type {{
+			<T>(
+				this: globalThis.Iterator<T>,
+				reducer: (accumulator: T, value: T) => T,
+			): T;
+			<T, U>(
+				this: globalThis.Iterator<T>,
+				reducer: (accumulator: U, value: T) => U,
+				initialValue: U,
+			): U;
+		}} */
 		reduce<T, U>(
-			this: Iterator<T>,
+			this: IteratorLike<T>,
 			reducer: (accumulator: U, value: T) => U,
-			initialValue?: U,
 		): U {
-			let iterated = GetIteratorDirect(this);
+			/** @type {U} */
+			const initialValue: U = arguments[1];
+			const iterated = GetIteratorDirect(this, false);
+
 			if (!IsCallable(reducer)) {
 				throw new $TypeError(inspect(reducer) + " is not a function");
 			}
@@ -831,11 +813,11 @@ const Iterator = (() => {
 
 		/**
 		 * @template T
-		 * @this {Iterator<T>}
+		 * @this {globalThis.Iterator<T>}
 		 * @return {T[]}
 		 */
-		toArray<T>(this: Iterator<T>): T[] {
-			let iterated = GetIteratorDirect(this);
+		toArray<T>(this: IteratorLike<T>): T[] {
+			let iterated = GetIteratorDirect(this, false);
 			/** @type {T[]} */
 			let items: T[] = [];
 
@@ -850,11 +832,11 @@ const Iterator = (() => {
 
 		/**
 		 * @template T
-		 * @this {Iterator<T>}
+		 * @this {globalThis.Iterator<T>}
 		 * @param {(value: T) => void} fn
 		 */
-		forEach<T>(this: Iterator<T>, fn: (value: T) => void): void {
-			let iterated = GetIteratorDirect(this);
+		forEach<T>(this: IteratorLike<T>, fn: (value: T) => void): void {
+			let iterated = GetIteratorDirect(this, false);
 			if (!IsCallable(fn)) {
 				throw new $TypeError(inspect(fn) + " is not a function");
 			}
@@ -877,12 +859,12 @@ const Iterator = (() => {
 
 		/**
 		 * @template T
-		 * @this {Iterator<T>}
+		 * @this {globalThis.Iterator<T>}
 		 * @param {(value: T) => unknown} fn
 		 * @return {boolean}
 		 */
-		some<T>(this: Iterator<T>, fn: (value: T) => unknown): boolean {
-			let iterated = GetIteratorDirect(this);
+		some<T>(this: IteratorLike<T>, fn: (value: T) => unknown): boolean {
+			let iterated = GetIteratorDirect(this, false);
 			if (!IsCallable(fn)) {
 				throw new $TypeError(inspect(fn) + " is not a function");
 			}
@@ -911,12 +893,12 @@ const Iterator = (() => {
 
 		/**
 		 * @template T
-		 * @this {Iterator<T>}
+		 * @this {globalThis.Iterator<T>}
 		 * @param {(value: T) => unknown} fn
 		 * @return {boolean}
 		 */
-		every<T>(this: Iterator<T>, fn: (value: T) => unknown): boolean {
-			let iterated = GetIteratorDirect(this);
+		every<T>(this: IteratorLike<T>, fn: (value: T) => unknown): boolean {
+			let iterated = GetIteratorDirect(this, false);
 			if (!IsCallable(fn)) {
 				throw new $TypeError(inspect(fn) + " is not a function");
 			}
@@ -945,15 +927,15 @@ const Iterator = (() => {
 
 		/**
 		 * @template T
-		 * @this {Iterator<T>}
+		 * @this {globalThis.Iterator<T>}
 		 * @param {(value: T) => unknown} fn
 		 * @return {T | undefined}
 		 */
 		find<T>(
-			this: Iterator<T>,
+			this: IteratorLike<T>,
 			fn: (value: unknown) => unknown,
 		): T | undefined {
-			let iterated = GetIteratorDirect(this);
+			let iterated = GetIteratorDirect(this, false);
 			if (!IsCallable(fn)) {
 				throw new $TypeError(inspect(fn) + " is not a function");
 			}
@@ -1017,20 +999,24 @@ const Iterator = (() => {
 		} catch {}
 	}
 
-	return Iterator;
+	return IteratorConstructor;
 })();
 
 /** @type {import("./implementation.js").Iterator<*>} */
 // prettier-ignore
 const WrapForValidIteratorPrototype: $IteratorPolyfill<any> = OrdinaryObjectCreate(Iterator.prototype);
 define(WrapForValidIteratorPrototype, {
-	next(value?: any) {
+	/**
+	 * @param {any} [value]
+	 * @return {IteratorResult<any>}
+	 */
+	next(value?: any): IteratorResult<any> {
 		const O = this;
 		SLOT.assert(O, "[[Iterated]]");
-		let iterated: IteratorRecord<Iterator<any>> = SLOT.get(
-			O,
-			"[[Iterated]]",
-		);
+		/** @type {IteratorRecord<globalThis.Iterator<any>>} */
+		// prettier-ignore
+		let iterated: IteratorRecord<IteratorLike<any>>
+			= SLOT.get(O, "[[Iterated]]");
 		if (arguments.length > 0) {
 			return IteratorNext(iterated, value);
 		} else {
@@ -1038,7 +1024,12 @@ define(WrapForValidIteratorPrototype, {
 		}
 	},
 
-	return<TReturn>(v?: TReturn): IteratorResult<never, TReturn> {
+	/**
+	 * @template TReturn
+	 * @param {TReturn} [v]
+	 * @return {IteratorResult<any, TReturn>}
+	 */
+	return<TReturn>(v?: TReturn): IteratorResult<any, TReturn> {
 		const O = this;
 		SLOT.assert(O, "[[Iterated]]");
 		return IteratorClose(
@@ -1050,17 +1041,17 @@ define(WrapForValidIteratorPrototype, {
 		);
 	},
 
+	/**
+	 * @param {any} [v]
+	 * @return {IteratorResult<any>}
+	 */
 	throw(v?: any): IteratorResult<any> {
 		const O = this;
 		SLOT.assert(O, "[[Iterated]]");
-		const iterator: IteratorRecord<Iterator<any>> = SLOT.get(
-			O,
-			"[[Iterated]]",
-		);
-		const _throw: Iterator<any>["throw"] = GetMethod(
-			iterator["[[Iterator]]"],
-			"throw",
-		);
+		/** @type {globalThis.Iterator<any>} */
+		// prettier-ignore
+		const iterator: IteratorLike<any> = SLOT.get(O, "[[Iterated]]")["[[Iterator]]"];
+		const _throw = GetMethod(iterator, "throw");
 		if (_throw === undefined) {
 			throw v;
 		}
@@ -1085,21 +1076,28 @@ const AsyncIterator = (() => {
 	define(AsyncIterator, {
 		/**
 		 * @template T
-		 * @param {Iterable<T> | Iterator<T> | AsyncIterable<T> | AsyncIterator<T>} O
+		 * @param {Iterable<T> | globalThis.Iterator<T> | AsyncIterable<T> | globalThis.AsyncIterator<T>} O
 		 * @return {import("./implementation.js").AsyncIterator<T>}
 		 */
 		from<T>(
-			O: Iterable<T> | Iterator<T> | AsyncIterable<T> | AsyncIterator<T>,
+			O:
+				| Iterable<T>
+				| IteratorLike<T>
+				| AsyncIterable<T>
+				| AsyncIteratorLike<T>,
 		): $AsyncIteratorPolyfill<T> {
-			/** @type {(() => Iterator<T> | AsyncIterator<T>) | undefined} */
+			/** @type {(() => globalThis.Iterator<T> | globalThis.AsyncIterator<T>) | undefined} */
 			let usingIterator:
-				| (() => Iterator<T> | AsyncIterator<T>)
+				| (() => IteratorLike<T> | AsyncIteratorLike<T>)
 				| undefined = $asyncIterator
 				? (GetMethod(O, $asyncIterator) as
-						| (() => AsyncIterator<T>)
+						| (() => AsyncIteratorLike<T>)
 						| undefined)
 				: undefined;
-			let iteratorRecord: IteratorRecord<AsyncIterator<T>> | undefined;
+			let iteratorRecord:
+				| IteratorRecord<IteratorLike<T>>
+				| IteratorRecord<AsyncIteratorLike<T>>
+				| undefined;
 			if (usingIterator !== undefined) {
 				iteratorRecord = GetIterator(O, "async", usingIterator);
 				let hasInstance = OrdinaryHasInstance(
@@ -1125,30 +1123,30 @@ const AsyncIterator = (() => {
 			}
 
 			if (iteratorRecord === undefined) {
-				iteratorRecord = GetIteratorDirect(O as AsyncIterator<T>, true);
+				iteratorRecord = GetIteratorDirect(O);
 			}
 
 			/** @type {import("./implementation.js").AsyncIterator<T>} */
 			let wrapper: $AsyncIteratorPolyfill<T> = OrdinaryObjectCreate(
 				WrapForValidAsyncIteratorPrototype,
+				// « [[AsyncIterated]] »
 			);
 			SLOT.set(wrapper, "[[AsyncIterated]]", iteratorRecord);
 			return wrapper;
 		},
 	});
 
-	define<ThisType<AsyncIterator<any>>>(AsyncIteratorPrototype, {
+	define<ThisType<AsyncIteratorLike<any>>>(AsyncIteratorPrototype, {
 		/**
-		 * @template T
-		 * @template U
-		 * @this {Iterator<T> | AsyncIterator<T>}
+		 * @template T, U
+		 * @this {globalThis.Iterator<T> | globalThis.AsyncIterator<T>}
 		 * @param {(value: T) => U | PromiseLike<U>} mapper
-		 * @return {AsyncGenerator<U, undefined>}
+		 * @return {AsyncGenerator<U, void>}
 		 */
 		async *map<T, U>(
-			this: Iterator<T> | AsyncIterator<T>,
+			this: IteratorLike<T> | AsyncIteratorLike<T>,
 			mapper: (value: T) => U | PromiseLike<U>,
-		): AsyncGenerator<U, undefined> {
+		): AsyncGenerator<U, void> {
 			let iterated = GetIteratorDirect(this);
 			if (!IsCallable(mapper)) {
 				throw new $TypeError(inspect(mapper) + " is not a function");
@@ -1192,14 +1190,14 @@ const AsyncIterator = (() => {
 
 		/**
 		 * @template T
-		 * @this {Iterator<T> | AsyncIterator<T>}
+		 * @this {globalThis.Iterator<T> | globalThis.AsyncIterator<T>}
 		 * @param {(value: T) => unknown | PromiseLike<unknown>} filterer
-		 * @return {AsyncGenerator<T, undefined>}
+		 * @return {AsyncGenerator<T, void>}
 		 */
 		async *filter<T>(
-			this: Iterator<T> | AsyncIterator<T>,
+			this: IteratorLike<T> | AsyncIteratorLike<T>,
 			filterer: (value: T) => unknown | PromiseLike<unknown>,
-		): AsyncGenerator<T, undefined> {
+		): AsyncGenerator<T, void> {
 			let iterated = GetIteratorDirect(this);
 			if (!IsCallable(filterer)) {
 				throw new $TypeError(inspect(filterer) + " is not a function");
@@ -1247,14 +1245,14 @@ const AsyncIterator = (() => {
 
 		/**
 		 * @template T
-		 * @this {Iterator<T> | AsyncIterator<T>}
+		 * @this {globalThis.Iterator<T> | globalThis.AsyncIterator<T>}
 		 * @param {number} limit
-		 * @return {AsyncGenerator<T, undefined>}
+		 * @return {AsyncGenerator<T, void>}
 		 */
 		async *take<T>(
-			this: Iterator<T> | AsyncIterator<T>,
+			this: IteratorLike<T> | AsyncIteratorLike<T>,
 			limit: number,
-		): AsyncGenerator<T, undefined> {
+		): AsyncGenerator<T, void> {
 			let iterated = GetIteratorDirect(this);
 			let remaining = ToInteger(limit);
 			if (remaining < 0) {
@@ -1279,18 +1277,20 @@ const AsyncIterator = (() => {
 					});
 				}
 			}
+
+			return AsyncIteratorClose(iterated, noop);
 		},
 
 		/**
 		 * @template T
-		 * @this {Iterator<T> | AsyncIterator<T>}
+		 * @this {globalThis.Iterator<T> | globalThis.AsyncIterator<T>}
 		 * @param {number} limit
-		 * @return {AsyncGenerator<T, undefined>}
+		 * @return {AsyncGenerator<T, void>}
 		 */
 		async *drop<T>(
-			this: Iterator<T> | AsyncIterator<T>,
+			this: IteratorLike<T> | AsyncIteratorLike<T>,
 			limit: number,
-		): AsyncGenerator<T, undefined> {
+		): AsyncGenerator<T, void> {
 			let iterated = GetIteratorDirect(this);
 			let remaining = ToInteger(limit);
 			if (remaining < 0) {
@@ -1325,11 +1325,11 @@ const AsyncIterator = (() => {
 
 		/**
 		 * @template T
-		 * @this {Iterator<T> | AsyncIterator<T>}
+		 * @this {globalThis.Iterator<T> | globalThis.AsyncIterator<T>}
 		 * @return {AsyncGenerator<[number, T], undefined>}
 		 */
 		async *asIndexedPairs<T>(
-			this: Iterator<T> | AsyncIterator<T>,
+			this: IteratorLike<T> | AsyncIteratorLike<T>,
 		): AsyncGenerator<[number, T], undefined> {
 			let iterated = GetIteratorDirect(this);
 			let index = 0;
@@ -1360,21 +1360,20 @@ const AsyncIterator = (() => {
 		},
 
 		/**
-		 * @template T
-		 * @template U
-		 * @this {Iterator<T> | AsyncIterator<T>}
+		 * @template T, U
+		 * @this {globalThis.Iterator<T> | globalThis.AsyncIterator<T>}
 		 * @param {(value: T) => Iterable<U> | AsyncIterable<U> | Promise<Iterable<U> | AsyncIterable<U>>} mapper
-		 * @return {AsyncGenerator<U, undefined>}
+		 * @return {AsyncGenerator<U, void>}
 		 */
 		async *flatMap<T, U>(
-			this: Iterator<T> | AsyncIterator<T>,
+			this: IteratorLike<T> | AsyncIteratorLike<T>,
 			mapper: (
 				value: T,
 			) =>
 				| Iterable<U>
 				| AsyncIterable<U>
 				| Promise<Iterable<U> | AsyncIterable<U>>,
-		): AsyncGenerator<U, undefined> {
+		): AsyncGenerator<U, void> {
 			let iterated = GetIteratorDirect(this);
 			if (!IsCallable(mapper)) {
 				throw new $TypeError(inspect(mapper) + " is not a function");
@@ -1390,60 +1389,55 @@ const AsyncIterator = (() => {
 				/** @type {T} */
 				let value: T = IteratorValue(next);
 
-				/** @type {Iterable<U> | AsyncIterable<U> | Promise<Iterable<U> | AsyncIterable<U>>} */
-				let mapped:
-					| Iterable<U>
-					| AsyncIterable<U>
-					| Promise<Iterable<U> | AsyncIterable<U>>;
-
 				try {
-					mapped = Call(mapper, undefined, [value]);
+					const mapped = await Call(mapper, undefined, [value]);
+					const innerIterator = GetIterator(mapped, "async");
+
+					/** @type {IteratorResult<U>} */
+					let innerNext: IteratorResult<U>;
+					while (
+						(innerNext = await IteratorNext(innerIterator)) &&
+						!IteratorComplete(innerNext)
+					) {
+						yield IteratorValue(innerNext);
+					}
 				} catch (e) {
 					return AsyncIteratorClose(iterated, () => {
 						throw e;
 					});
-				}
-
-				try {
-					mapped = await mapped;
-				} catch (e) {
-					return AsyncIteratorClose(iterated, () => {
-						throw e;
-					});
-				}
-
-				/** @type {IteratorRecord<AsyncIterator<U>>} */
-				// prettier-ignore
-				let innerIterator: IteratorRecord<AsyncIterator<U>> = GetIterator(mapped, "async");
-
-				/** @type {IteratorResult<U>} */
-				let innerNext: IteratorResult<U>;
-				while (
-					(innerNext = await IteratorNext(innerIterator)) &&
-					!IteratorComplete(innerNext)
-				) {
-					yield IteratorValue(innerNext);
 				}
 			}
 		},
 
 		/**
-		 * @template T
-		 * @template U
-		 * @this {Iterator<T> | AsyncIterator<T>}
+		 * @template T, U
+		 * @this {globalThis.Iterator<T> | globalThis.AsyncIterator<T>}
 		 * @param {(accumulator: U, value: T) => U | PromiseLike<U>} reducer
 		 * @param {U} [initialValue]
 		 * @return {Promise<U>}
-		 */
+		 * @type {{
+			<T>(
+				this: globalThis.Iterator<T> | globalThis.AsyncIterator<T>,
+				reducer: (accumulator: T, value: T) => T | PromiseLike<T>,
+			): Promise<T>;
+			<T, U>(
+				this: globalThis.Iterator<T> | globalThis.AsyncIterator<T>,
+				reducer: (accumulator: U, value: T) => U | PromiseLike<U>,
+				initialValue: U,
+			): Promise<U>;
+		}} */
 		reduce<T, U>(
-			this: Iterator<T> | AsyncIterator<T>,
+			this: IteratorLike<T> | AsyncIteratorLike<T>,
 			reducer: (accumulator: U, value: T) => U | PromiseLike<U>,
-			initialValue?: U,
 		): Promise<U> {
-			const _args = arguments;
+			const { length, 1: initialValue } = arguments;
+			/** @type {U} */
+			let accumulator: U;
 
-			/** @type {Iterator<T> | AsyncIterator<T>} */
-			let iterated: Iterator<T> | AsyncIterator<T>;
+			/** @type {IteratorRecord<globalThis.Iterator<T>> | IteratorRecord<globalThis.AsyncIterator<T>>} */
+			let iterated:
+				| IteratorRecord<IteratorLike<T>>
+				| IteratorRecord<AsyncIteratorLike<T>>;
 
 			return promiseThenChain(() => {
 				iterated = GetIteratorDirect(this);
@@ -1453,7 +1447,7 @@ const AsyncIterator = (() => {
 					);
 				}
 
-				if (_args.length < 2) {
+				if (length < 2) {
 					return promiseThenChain(
 						() => IteratorNext(iterated),
 						next => {
@@ -1462,16 +1456,16 @@ const AsyncIterator = (() => {
 									"reduce of empty iterator with no initial value",
 								);
 							}
-							return IteratorValue(next);
+							accumulator = IteratorValue(next) as any;
 						},
 					);
 				} else {
-					return initialValue;
+					accumulator = initialValue;
 				}
 			}, __recursive);
 
-			/** @param {U} accumulator @return {Promise<U>} */
-			function __recursive(accumulator: U): Promise<U> {
+			/** @return {Promise<U>} */
+			function __recursive(): Promise<U> {
 				return promiseThenChain(
 					() => IteratorNext(iterated),
 					/** @param {IteratorResult<T>} next */
@@ -1481,29 +1475,26 @@ const AsyncIterator = (() => {
 						}
 
 						let value = IteratorValue(next);
-
-						/** @type {U | PromiseLike<U>} */
-						let result: U | PromiseLike<U>;
-
-						try {
-							result = Call(reducer, undefined, [
-								accumulator,
-								value,
-							]);
-						} catch (e) {
-							return AsyncIteratorClose(iterated, () => {
-								throw e;
-							});
-						}
-
-						return promiseThenChain(() => result, {
-							onFulfilled: __recursive,
-							onRejected(e: any) {
-								return AsyncIteratorClose(iterated, () => {
-									throw e;
-								});
+						return promiseThenChain(
+							() => {
+								return Call(reducer, undefined, [
+									accumulator,
+									value,
+								]);
 							},
-						});
+							{
+								/** @param {U} result */
+								onFulfilled(result: U) {
+									accumulator = result;
+									return __recursive();
+								},
+								onRejected(e: any) {
+									return AsyncIteratorClose(iterated, () => {
+										throw e;
+									});
+								},
+							},
+						);
 					},
 				);
 			}
@@ -1511,12 +1502,14 @@ const AsyncIterator = (() => {
 
 		/**
 		 * @template T
-		 * @this {Iterator<T> | AsyncIterator<T>}
+		 * @this {globalThis.Iterator<T> | globalThis.AsyncIterator<T>}
 		 * @return {Promise<T[]>}
 		 */
-		toArray<T>(this: Iterator<T> | AsyncIterator<T>): Promise<T[]> {
-			/** @type {Iterator<T> | AsyncIterator<T>} */
-			let iterated: Iterator<T> | AsyncIterator<T>;
+		toArray<T>(this: IteratorLike<T> | AsyncIteratorLike<T>): Promise<T[]> {
+			/** @type {IteratorRecord<globalThis.Iterator<T>> | IteratorRecord<globalThis.AsyncIterator<T>>} */
+			let iterated:
+				| IteratorRecord<IteratorLike<T>>
+				| IteratorRecord<AsyncIteratorLike<T>>;
 
 			return promiseThenChain(() => {
 				iterated = GetIteratorDirect(this);
@@ -1546,16 +1539,18 @@ const AsyncIterator = (() => {
 
 		/**
 		 * @template T
-		 * @this {Iterator<T> | AsyncIterator<T>}
+		 * @this {globalThis.Iterator<T> | globalThis.AsyncIterator<T>}
 		 * @param {(value: T) => void | PromiseLike<void>} fn
 		 * @return {Promise<void>}
 		 */
 		forEach<T>(
-			this: Iterator<T> | AsyncIterator<T>,
+			this: IteratorLike<T> | AsyncIteratorLike<T>,
 			fn: (value: T) => void | PromiseLike<void>,
 		): Promise<void> {
-			/** @type {Iterator<T> | AsyncIterator<T>} */
-			let iterated: Iterator<T> | AsyncIterator<T>;
+			/** @type {IteratorRecord<globalThis.Iterator<T>> | IteratorRecord<globalThis.AsyncIterator<T>>} */
+			let iterated:
+				| IteratorRecord<IteratorLike<T>>
+				| IteratorRecord<AsyncIteratorLike<T>>;
 
 			return promiseThenChain(() => {
 				iterated = GetIteratorDirect(this);
@@ -1603,16 +1598,18 @@ const AsyncIterator = (() => {
 
 		/**
 		 * @template T
-		 * @this {Iterator<T> | AsyncIterator<T>}
+		 * @this {globalThis.Iterator<T> | globalThis.AsyncIterator<T>}
 		 * @param {(value: T) => unknown} fn
 		 * @return {Promise<boolean>}
 		 */
 		some<T>(
-			this: Iterator<T> | AsyncIterator<T>,
+			this: IteratorLike<T> | AsyncIteratorLike<T>,
 			fn: (value: T) => unknown,
 		): Promise<boolean> {
-			/** @type {Iterator<T> | AsyncIterator<T>} */
-			let iterated: Iterator<T> | AsyncIterator<T>;
+			/** @type {IteratorRecord<globalThis.Iterator<T>> | IteratorRecord<globalThis.AsyncIterator<T>>} */
+			let iterated:
+				| IteratorRecord<IteratorLike<T>>
+				| IteratorRecord<AsyncIteratorLike<T>>;
 
 			return promiseThenChain(() => {
 				iterated = GetIteratorDirect(this);
@@ -1661,16 +1658,18 @@ const AsyncIterator = (() => {
 
 		/**
 		 * @template T
-		 * @this {Iterator<T> | AsyncIterator<T>}
+		 * @this {globalThis.Iterator<T> | globalThis.AsyncIterator<T>}
 		 * @param {(value: T) => unknown} fn
 		 * @return {Promise<boolean>}
 		 */
 		every<T>(
-			this: Iterator<T> | AsyncIterator<T>,
+			this: IteratorLike<T> | AsyncIteratorLike<T>,
 			fn: (value: T) => unknown,
 		): Promise<boolean> {
-			/** @type {Iterator<T> | AsyncIterator<T>} */
-			let iterated: Iterator<T> | AsyncIterator<T>;
+			/** @type {IteratorRecord<globalThis.Iterator<T>> | IteratorRecord<globalThis.AsyncIterator<T>>} */
+			let iterated:
+				| IteratorRecord<IteratorLike<T>>
+				| IteratorRecord<AsyncIteratorLike<T>>;
 
 			return promiseThenChain(() => {
 				iterated = GetIteratorDirect(this);
@@ -1721,16 +1720,18 @@ const AsyncIterator = (() => {
 
 		/**
 		 * @template T
-		 * @this {Iterator<T> | AsyncIterator<T>}
+		 * @this {globalThis.Iterator<T> | globalThis.AsyncIterator<T>}
 		 * @param {(value: T) => unknown} fn
 		 * @return {Promise<T | undefined>}
 		 */
 		find<T>(
-			this: Iterator<T> | AsyncIterator<T>,
+			this: IteratorLike<T> | AsyncIteratorLike<T>,
 			fn: (value: T) => unknown,
 		): Promise<T | undefined> {
-			/** @type {Iterator<T> | AsyncIterator<T>} */
-			let iterated: Iterator<T> | AsyncIterator<T>;
+			/** @type {IteratorRecord<globalThis.Iterator<T>> | IteratorRecord<globalThis.AsyncIterator<T>>} */
+			let iterated:
+				| IteratorRecord<IteratorLike<T>>
+				| IteratorRecord<AsyncIteratorLike<T>>;
 
 			return promiseThenChain(() => {
 				iterated = GetIteratorDirect(this);
@@ -1826,15 +1827,20 @@ const AsyncIterator = (() => {
 // prettier-ignore
 const WrapForValidAsyncIteratorPrototype: $AsyncIteratorPolyfill<any> = OrdinaryObjectCreate(AsyncIterator.prototype);
 define(WrapForValidAsyncIteratorPrototype, {
-	next(value?: any): Promise<IteratorResult<any, any>> {
+	/**
+	 * @param {any} [value]
+	 * @return {Promise<IteratorResult<any>>}
+	 */
+	next(value?: any): Promise<IteratorResult<any>> {
 		const O = this;
 		const { length } = arguments;
 
 		return new $Promise(resolve => {
 			SLOT.assert(O, "[[AsyncIterated]]");
-			let iterated: IteratorRecord<
-				Iterator<any> | AsyncIterator<any>
-			> = SLOT.get(O, "[[AsyncIterated]]");
+			/** @type {IteratorRecord<globalThis.Iterator<any>> | IteratorRecord<globalThis.AsyncIterator<any>>} */
+			// prettier-ignore
+			let iterated: IteratorRecord<IteratorLike<any>> | IteratorRecord<AsyncIteratorLike<any>>
+				= SLOT.get(O, "[[AsyncIterated]]");
 			if (length > 0) {
 				resolve(IteratorNext(iterated, value));
 			} else {
@@ -1843,6 +1849,11 @@ define(WrapForValidAsyncIteratorPrototype, {
 		});
 	},
 
+	/**
+	 * @template TReturn
+	 * @param {TReturn} [v]
+	 * @return {Promise<IteratorResult<any, TReturn>>}
+	 */
 	return<TReturn>(v?: TReturn): Promise<IteratorResult<any, TReturn>> {
 		const O = this;
 		return new $Promise(resolve => {
@@ -1858,14 +1869,19 @@ define(WrapForValidAsyncIteratorPrototype, {
 		});
 	},
 
+	/**
+	 * @param {any} [v]
+	 * @return {Promise<IteratorResult<any>>}
+	 */
 	throw(v?: any): Promise<IteratorResult<any>> {
 		const O = this;
 		return new $Promise(resolve => {
 			SLOT.assert(O, "[[AsyncIterated]]");
-			const iterator: IteratorRecord<
-				Iterator<any> | AsyncIterator<any>
-			> = SLOT.get(O, "[[AsyncIterated]]");
-			const _throw = GetMethod(iterator["[[Iterator]]"], "throw");
+			/** @type {globalThis.Iterator<any> | globalThis.AsyncIterator<any>} */
+			// prettier-ignore
+			const iterator: IteratorLike<any> | AsyncIteratorLike<any>
+				= SLOT.get(O, "[[AsyncIterated]]")["[[Iterator]]"];
+			const _throw = GetMethod(iterator, "throw");
 			if (_throw === undefined) {
 				throw v;
 			}
