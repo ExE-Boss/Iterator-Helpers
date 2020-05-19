@@ -15,19 +15,17 @@ import GetIntrinsic = require("es-abstract/GetIntrinsic.js");
 import AdvanceStringIndex = require("es-abstract/2018/AdvanceStringIndex.js");
 import Call = require("es-abstract/2018/Call.js");
 import CreateMethodProperty = require("es-abstract/2018/CreateMethodProperty.js");
-import FromPropertyDescriptor = require("es-abstract/2018/FromPropertyDescriptor.js");
+import DefinePropertyOrThrow = require("es-abstract/2018/DefinePropertyOrThrow.js");
 import GetMethod = require("es-abstract/2018/GetMethod.js");
 import GetV = require("es-abstract/2018/GetV.js");
 import Invoke = require("es-abstract/2018/Invoke.js");
 import IsArray = require("es-abstract/2018/IsArray.js");
 import IsCallable = require("es-abstract/2018/IsCallable.js");
-import IsDataDescriptor = require("es-abstract/2018/IsDataDescriptor.js");
 import IteratorClose = require("es-abstract/2018/IteratorClose.js");
 import IteratorComplete = require("es-abstract/2018/IteratorComplete.js");
 import IteratorValue = require("es-abstract/2018/IteratorValue.js");
 import OrdinaryHasInstance = require("es-abstract/2018/OrdinaryHasInstance.js");
 import OrdinaryObjectCreate = require("es-abstract/2018/ObjectCreate.js");
-import SameValue = require("es-abstract/2018/SameValue.js");
 import ToBoolean = require("es-abstract/2018/ToBoolean.js");
 import ToInteger = require("es-abstract/2018/ToInteger.js");
 import Type = require("es-abstract/2018/Type.js");
@@ -39,11 +37,13 @@ const ES = {
 	Type,
 };
 
-import DefineOwnProperty = require("es-abstract/helpers/DefineOwnProperty.js");
+import callBound = require("es-abstract/helpers/callBound.js");
 import getIteratorMethod = require("es-abstract/helpers/getIteratorMethod.js");
 import $setProto = require("es-abstract/helpers/setProto.js");
 
+import bind = require("function-bind");
 import define = require("define-properties");
+import hasOwnProperty = require("has");
 import inspect = require("object-inspect");
 import SLOT = require("internal-slot");
 
@@ -65,16 +65,18 @@ const $toStringTag: typeof Symbol.toStringTag | undefined = (GetIntrinsic("%Symb
 
 const $RangeError = GetIntrinsic("%RangeError%");
 const $TypeError = GetIntrinsic("%TypeError%");
-
-/** @type {{
-	(): Promise<void>;
-	<T>(value: T | PromiseLike<T>): Promise<T>;
-}} */
+const $Promise = GetIntrinsic("%Promise%");
+/** @type {<T, TReturn = T, TCatch = never>(
+	promise: Promise<T>,
+	onFulfilled?: ((value: T) => TReturn | PromiseLike<TReturn>) | null,
+	onRejected?: ((reason: any) => TCatch | PromiseLike<TCatch>) | null,
+) => Promise<TReturn | TCatch>} */
 // prettier-ignore
-const $NewPromise: {
-	(): Promise<void>;
-	<T>(value: T | PromiseLike<T>): Promise<T>;
-} = GetIntrinsic("%Promise_resolve%").bind(GetIntrinsic("%Promise%"));
+const $PromiseProto_then: <T, TReturn = T, TCatch = never>(
+	promise: Promise<T>,
+	onFulfilled?: ((value: T) => TReturn | PromiseLike<TReturn>) | null,
+	onRejected?: ((reason: any) => TCatch | PromiseLike<TCatch>) | null
+) => Promise<TReturn | TCatch> = (callBound("%PromiseProto_then%")) as any;
 
 /** @type {undefined} */
 var undefined: undefined;
@@ -96,12 +98,12 @@ function GetIterator<I extends Iterator<unknown, unknown, unknown>>(obj: {
 }): IteratorRecord<I>;
 function GetIterator<I extends Iterator<unknown, unknown, unknown>>(
 	obj: { [Symbol.iterator](): I },
-	hint: "sync"
+	hint: "sync",
 ): IteratorRecord<I>;
 function GetIterator<O, I extends Iterator<unknown, unknown, unknown>>(
 	obj: O,
 	hint: "sync",
-	method: (this: O) => I
+	method: (this: O) => I,
 ): IteratorRecord<I>;
 function GetIterator<
 	O extends
@@ -109,7 +111,7 @@ function GetIterator<
 		| { [Symbol.iterator](): Iterator<unknown, unknown, unknown> }
 >(
 	obj: O,
-	hint: "async"
+	hint: "async",
 ): IteratorRecord<
 	O extends { [Symbol.asyncIterator](): infer I }
 		? I
@@ -131,7 +133,7 @@ function GetIterator<
 >(
 	obj: O,
 	hint: "async",
-	method: (this: O) => I
+	method: (this: O) => I,
 ): IteratorRecord<
 	I extends Iterator<infer T, infer TReturn, infer TNext>
 		? AsyncIterator<T, TReturn, TNext>
@@ -179,7 +181,7 @@ function GetIterator<
 			}
 			if (actualMethod === undefined) {
 				throw new $TypeError(
-					"async from sync iterators aren't currently supported"
+					"async from sync iterators aren't currently supported",
 				);
 			}
 		} else {
@@ -202,6 +204,102 @@ function GetIterator<
 	};
 }
 
+namespace promiseThenChain {
+	export type ExecutorCallbackFunction<T, TReturn> = (
+		value: T,
+	) => TReturn | PromiseLike<TReturn>;
+	export interface ExecutorCallbackInterface<T, TReturn, TCatch> {
+		onFulfilled?(value: T): TReturn | PromiseLike<TReturn>;
+		onRejected?(value: any): TCatch | PromiseLike<TCatch>;
+	}
+
+	export type ExecutorCallback<T = any, TReturn = any, TCatch = any> =
+		| ExecutorCallbackFunction<T, TReturn>
+		| ExecutorCallbackInterface<T, TReturn, TCatch>;
+}
+
+function promiseThenChain<T>(executor?: () => T | PromiseLike<T>): Promise<T>;
+function promiseThenChain<T, T1R = T, T1C = never>(
+	executor: () => T | PromiseLike<T>,
+	then1: promiseThenChain.ExecutorCallback<T, T1R, T1C>,
+): Promise<T1R | T1C>;
+function promiseThenChain<
+	T,
+	T1R = T,
+	T1C = never,
+	T2R = T1R | T1C,
+	T2C = never
+>(
+	executor: () => T | PromiseLike<T>,
+	then1: promiseThenChain.ExecutorCallback<T, T1R, T1C>,
+	then2: promiseThenChain.ExecutorCallback<T1R | T1C, T2R, T2C>,
+): Promise<T2R | T2C>;
+function promiseThenChain<
+	T,
+	T1R = T,
+	T1C = never,
+	T2R = T1R | T1C,
+	T2C = never,
+	T3R = T2R | T2C,
+	T3C = never
+>(
+	executor: () => T | PromiseLike<T>,
+	then1: promiseThenChain.ExecutorCallback<T, T1R, T1C>,
+	then2: promiseThenChain.ExecutorCallback<T1R | T1C, T2R, T2C>,
+	then3: promiseThenChain.ExecutorCallback<T1R | T1C, T2R, T2C>,
+): Promise<T3R | T3C>;
+function promiseThenChain(
+	executor: () => any,
+	...thens: promiseThenChain.ExecutorCallback[]
+): Promise<any>;
+
+/**
+ * @typedef {(value: any) => any} promiseThenChain.ExecutorCallbackFunction
+ * @typedef {{
+	onFulfilled?(value: any): any;
+	onRejected?(value: any): any;
+}} promiseThenChain.ExecutorCallbackInterface
+ * @typedef {
+	| promiseThenChain.ExecutorCallbackFunction
+	| promiseThenChain.ExecutorCallbackInterface
+} promiseThenChain.ExecutorCallback
+ */
+
+/**
+ * @param {() => any} [executor]
+ * @param {promiseThenChain.ExecutorCallback[]} thens
+ * @type {(
+	executor: () => any,
+	...thens: promiseThenChain.ExecutorCallback[]
+) => Promise<any>} */
+function promiseThenChain(executor?: () => any): Promise<any> {
+	const { length } = arguments;
+	let promise: Promise<any> = new $Promise(resolve => {
+		let result;
+		if (IsCallable(executor)) {
+			result = executor();
+		}
+		resolve(result);
+	});
+
+	for (let i = 1; i < length; i++) {
+		/** @type {promiseThenChain.ExecutorCallback} */
+		const thens: promiseThenChain.ExecutorCallback<any, any, any> =
+			arguments[i];
+		if (IsCallable(thens)) {
+			promise = $PromiseProto_then(promise, thens);
+		} else {
+			promise = $PromiseProto_then(
+				promise,
+				thens.onFulfilled,
+				thens.onRejected,
+			);
+		}
+	}
+
+	return promise;
+}
+
 /**
  * @template T
  * @param {Iterator<any, any, any> | AsyncIterator<any, any, any> | IteratorRecord<Iterator<any, any, any> | AsyncIterator<any, any, any>>} iteratorRecord
@@ -216,88 +314,72 @@ function AsyncIteratorClose<T>(
 		| IteratorRecord<
 				Iterator<any, any, any> | AsyncIterator<any, any, any>
 		  >,
-	completion: () => T | PromiseLike<T>
+	completion: () => T | PromiseLike<T>,
 ): Promise<T> {
-	/** @type {typeof completion | null} */
-	let completionThunk: typeof completion | null;
 	/** @type {Iterator<any, any, unknown> | AsyncIterator<any, any, unknown>} */
-	var iterator:
+	let iterator:
 		| Iterator<any, any, unknown>
 		| AsyncIterator<any, any, unknown>;
-	/** @type {(value?: any) => IteratorResult<any, any> | Promise<IteratorResult<any, any>>} */
-	var iteratorReturn: (
-		value?: any
-	) => IteratorResult<any, any> | Promise<IteratorResult<any, any>>;
 
-	/** @type {ReturnType<typeof completion>} */
-	var completionRecord: ReturnType<typeof completion>;
-
-	// Heavily modified from the output of https://www.npmjs.com/package/babel-plugin-async-to-promises
-	return $NewPromise().then((): PromiseLike<T> | T => {
-		if ("[[Iterator]]" in iteratorRecord) {
-			if (Type(iteratorRecord["[[Iterator]]"]) !== "Object") {
-				throw new $TypeError(
-					"Assertion failed: Type(iteratorRecord.[[Iterator]]) is not Object"
-				);
-			}
-			iterator = iteratorRecord["[[Iterator]]"];
-		} else {
-			iterator = iteratorRecord;
-		}
-
-		if (!IsCallable(completion)) {
+	if (hasOwnProperty(iteratorRecord, "[[Iterator]]")) {
+		if (Type(iteratorRecord["[[Iterator]]"]) !== "Object") {
 			throw new $TypeError(
-				"Assertion failed: completion is not a thunk for a Completion Record"
+				"Assertion failed: Type(iteratorRecord.[[Iterator]]) is not Object",
 			);
 		}
+		iterator = iteratorRecord["[[Iterator]]"];
+	} else {
+		iterator = iteratorRecord;
+	}
 
-		completionThunk = completion;
-		iteratorReturn = GetMethod(iterator, "return")!;
+	if (!IsCallable(completion)) {
+		throw new $TypeError(
+			"Assertion failed: completion is not a thunk for a Completion Record",
+		);
+	}
 
-		if (typeof iteratorReturn === "undefined") {
-			return completionThunk();
-		} else {
-			return $NewPromise()
-				.then(function () {
-					return Call(iteratorReturn, iterator, []);
-				})
-				.then(
-					function (innerResult) {
-						completionRecord = completionThunk!(); // if innerResult worked, then throw if the completion does
-						completionThunk = null; // ensure it's not called twice.
-
-						if (Type(innerResult) !== "Object") {
-							throw new $TypeError(
-								"iterator .return must return an object"
-							);
-						}
-
-						return completionRecord;
-					},
-					function (e) {
-						// if we hit here, then "e" is the innerResult completion that needs re-throwing
-
-						// if the completion is of type "throw", this will throw.
-						completionRecord = completionThunk!();
-						completionThunk = null; // ensure it's not called twice.
-
-						// if not, then return the innerResult completion
-						throw e;
-					}
-				);
+	return promiseThenChain(() => {
+		let iteratorReturn = GetMethod(iterator, "return")!;
+		if (iteratorReturn === void 0) {
+			return completion();
 		}
+
+		return promiseThenChain(() => Call(iteratorReturn, iterator, []), {
+			/** @param {IteratorResult<any>} innerResult */
+			onFulfilled(innerResult: IteratorResult<any>) {
+				// if innerResult worked, then throw if the completion does
+				const completionRecord = completion();
+
+				if (Type(innerResult) !== "Object") {
+					throw new $TypeError(
+						"iterator .return must return an object",
+					);
+				}
+
+				return completionRecord;
+			},
+			onRejected(e) {
+				// if we hit here, then "e" is the innerResult completion that needs re-throwing
+
+				// if the completion is of type "throw", this will throw.
+				completion();
+
+				// if not, then return the innerResult completion
+				throw e;
+			},
+		});
 	});
 }
 
 function GetIteratorDirect<O extends object>(
 	obj: O,
-	useIteratorRecord: true
+	useIteratorRecord: true,
 ): O extends Iterator<any, any, any> | AsyncIterator<any, any, any>
 	? IteratorRecord<O>
 	: never;
 function GetIteratorDirect<O extends object>(
 	obj: O,
-	useIteratorRecord?: false
+	useIteratorRecord?: false,
 ): O extends Iterator<any, any, any> | AsyncIterator<any, any, any> ? O : never;
 
 /**
@@ -307,7 +389,7 @@ function GetIteratorDirect<O extends object>(
  */
 function GetIteratorDirect<O extends object>(
 	obj: O,
-	useIteratorRecord?: boolean
+	useIteratorRecord?: boolean,
 ) {
 	if (Type(obj) !== "Object") {
 		throw new $TypeError("obj must be an Object, got " + Type(obj));
@@ -327,11 +409,11 @@ function GetIteratorDirect<O extends object>(
 }
 
 function IteratorStep<T>(
-	iterator: Iterator<T> | IteratorRecord<Iterator<T>>
+	iterator: Iterator<T> | IteratorRecord<Iterator<T>>,
 ): IteratorYieldResult<T> | false;
 function IteratorStep<T, TNext = undefined>(
 	iterator: Iterator<T, any, TNext> | IteratorRecord<Iterator<T, any, TNext>>,
-	value: TNext
+	value: TNext,
 ): IteratorYieldResult<T> | false;
 
 /**
@@ -344,7 +426,7 @@ function IteratorStep<T, TReturn, TNext>(
 	iterator:
 		| Iterator<T, TReturn, TNext>
 		| IteratorRecord<Iterator<T, TReturn, TNext>>,
-	value?: TNext
+	value?: TNext,
 ): false | IteratorYieldResult<T> {
 	/** @type {IteratorResult<T, TReturn>} */
 	let result: IteratorResult<T, TReturn>;
@@ -361,13 +443,13 @@ function IteratorNext<T, TReturn = unknown, TNext = undefined>(
 	iteratorRecord:
 		| Iterator<T, TReturn, TNext>
 		| IteratorRecord<Iterator<T, TReturn, TNext>>,
-	value?: TNext
+	value?: TNext,
 ): IteratorResult<T, TReturn>;
 function IteratorNext<T, TReturn = unknown, TNext = undefined>(
 	iteratorRecord:
 		| AsyncIterator<T, TReturn, TNext>
 		| IteratorRecord<AsyncIterator<T, TReturn, TNext>>,
-	value?: TNext
+	value?: TNext,
 ): Promise<IteratorResult<T, TReturn>>;
 function IteratorNext<T, TReturn = unknown, TNext = undefined>(
 	iteratorRecord:
@@ -376,33 +458,33 @@ function IteratorNext<T, TReturn = unknown, TNext = undefined>(
 		| IteratorRecord<
 				Iterator<T, TReturn, TNext> | AsyncIterator<T, TReturn, TNext>
 		  >,
-	value?: TNext
+	value?: TNext,
 ): IteratorResult<T, TReturn> | Promise<IteratorResult<T, TReturn>>;
 
 /**
  * @template T, TReturn, TNext
  * @param {{ next(value?: TNext): any } | IteratorRecord<{ next(value?: TNext): any }>} iterator
  * @param {TNext} [value]
- * @return {IteratorResult<T, TReturn> | Promise<IteratorResult<T, TReturn>>}
+ * @return {IteratorResult<T, TReturn>}
  */
 function IteratorNext<T, TReturn = unknown, TNext = undefined>(
 	iterator:
 		| {
 				next(
-					value?: TNext
+					value?: TNext,
 				):
 					| IteratorResult<T, TReturn>
 					| Promise<IteratorResult<T, TReturn>>;
 		  }
 		| IteratorRecord<{ next(value?: TNext): any }>,
-	value: TNext
+	value: TNext,
 ): IteratorResult<T, TReturn> | Promise<IteratorResult<T, TReturn>> {
 	let result: any;
 	if ("[[Iterator]]" in iterator) {
 		result = Call(
 			iterator["[[NextMethod]]"],
 			iterator["[[Iterator]]"],
-			arguments.length < 2 ? [] : [value]
+			arguments.length < 2 ? [] : [value],
 		);
 	} else {
 		result = Invoke(iterator, "next", arguments.length < 2 ? [] : [value]);
@@ -413,17 +495,22 @@ function IteratorNext<T, TReturn = unknown, TNext = undefined>(
 	return result;
 }
 
-/** @type {typeof import("./implementation.js").Iterator} */
-export const Iterator: typeof $IteratorPolyfill = ((): any => {
-	function Iterator() {
-		if (new.target === undefined) {
-			throw new $TypeError("Cannot call a class as a function");
+const Iterator = (() => {
+	// @ts-ignore
+	/** @type {typeof import("./implementation.js").Iterator} */
+	// prettier-ignore
+	const Iterator: typeof $IteratorPolyfill = (
+		/** @constructor */
+		function Iterator() {
+			if (new.target === undefined || new.target === Iterator) {
+				throw new $TypeError(
+					"Abstract class constructor Iterator cannot be invoked without 'super()'",
+				);
+			}
 		}
-		if (new.target === Iterator) {
-			throw new $TypeError("Cannot construct abstract class");
-		}
-	}
+	) as any;
 
+	const IteratorPrototype = Iterator.prototype;
 	define(Iterator, {
 		/**
 		 * @template T
@@ -437,11 +524,11 @@ export const Iterator: typeof $IteratorPolyfill = ((): any => {
 				iteratorRecord = GetIterator<Iterable<T>, Iterator<T>>(
 					O as Iterable<T>,
 					"sync",
-					usingIterator
+					usingIterator,
 				);
 				let hasInstance = OrdinaryHasInstance(
 					Iterator,
-					iteratorRecord["[[Iterator]]"]
+					iteratorRecord["[[Iterator]]"],
 				);
 				if (hasInstance) {
 					// prettier-ignore
@@ -455,14 +542,14 @@ export const Iterator: typeof $IteratorPolyfill = ((): any => {
 
 			/** @type {import("./implementation.js").Iterator<T>} */
 			let wrapper: $IteratorPolyfill<T> = OrdinaryObjectCreate(
-				WrapForValidIteratorPrototype
+				WrapForValidIteratorPrototype,
 			);
 			SLOT.set(wrapper, "[[Iterated]]", iteratorRecord);
 			return wrapper;
 		},
 	});
 
-	define(Iterator.prototype, {
+	define(IteratorPrototype, {
 		/**
 		 * @template T
 		 * @template U
@@ -472,7 +559,7 @@ export const Iterator: typeof $IteratorPolyfill = ((): any => {
 		 */
 		*map<T, U>(
 			this: Iterator<T>,
-			mapper: (value: T) => U
+			mapper: (value: T) => U,
 		): Generator<U, undefined> {
 			let iterated = GetIteratorDirect(this);
 			if (!IsCallable(mapper)) {
@@ -514,7 +601,7 @@ export const Iterator: typeof $IteratorPolyfill = ((): any => {
 		 */
 		*filter<T>(
 			this: Iterator<T>,
-			filterer: (value: T) => unknown
+			filterer: (value: T) => unknown,
 		): Generator<T, undefined> {
 			let iterated = GetIteratorDirect(this);
 			if (!IsCallable(filterer)) {
@@ -622,7 +709,7 @@ export const Iterator: typeof $IteratorPolyfill = ((): any => {
 		 * @return {Generator<[number, T], undefined>}
 		 */
 		*asIndexedPairs<T>(
-			this: Iterator<T>
+			this: Iterator<T>,
 		): Generator<[number, T], undefined> {
 			let iterated = GetIteratorDirect(this);
 			let index = 0;
@@ -658,7 +745,7 @@ export const Iterator: typeof $IteratorPolyfill = ((): any => {
 		 */
 		*flatMap<T, U>(
 			this: Iterator<T>,
-			mapper: (value: T) => Iterable<U>
+			mapper: (value: T) => Iterable<U>,
 		): Generator<U, undefined> {
 			let iterated = GetIteratorDirect(this);
 			if (!IsCallable(mapper)) {
@@ -700,7 +787,7 @@ export const Iterator: typeof $IteratorPolyfill = ((): any => {
 		reduce<T, U>(
 			this: Iterator<T>,
 			reducer: (accumulator: U, value: T) => U,
-			initialValue?: U
+			initialValue?: U,
 		): U {
 			let iterated = GetIteratorDirect(this);
 			if (!IsCallable(reducer)) {
@@ -716,7 +803,7 @@ export const Iterator: typeof $IteratorPolyfill = ((): any => {
 				next = IteratorStep(iterated);
 				if (next === false) {
 					throw new $TypeError(
-						"reduce of empty iterator with no initial value"
+						"reduce of empty iterator with no initial value",
 					);
 				}
 				accumulator = IteratorValue(next) as any;
@@ -864,7 +951,7 @@ export const Iterator: typeof $IteratorPolyfill = ((): any => {
 		 */
 		find<T>(
 			this: Iterator<T>,
-			fn: (value: unknown) => unknown
+			fn: (value: unknown) => unknown,
 		): T | undefined {
 			let iterated = GetIteratorDirect(this);
 			if (!IsCallable(fn)) {
@@ -893,46 +980,44 @@ export const Iterator: typeof $IteratorPolyfill = ((): any => {
 	});
 
 	if ($toStringTag) {
-		DefineOwnProperty(
-			IsDataDescriptor,
-			SameValue,
-			FromPropertyDescriptor,
-			Iterator.prototype,
-			$toStringTag,
-			{
+		try {
+			DefinePropertyOrThrow(IteratorPrototype, $toStringTag, {
 				"[[Value]]": "Iterator",
 				"[[Configurable]]": true,
-			}
-		);
-	}
-
-	if ($IteratorProto) {
-		$setProto!(Iterator.prototype, $IteratorProto);
-
-		CreateMethodProperty(
-			Iterator.prototype,
-			$iterator!,
-			// @ts-ignore
-			$IteratorProto[$iterator!]
-		);
-	} else if ($iterator) {
-		// This probably can't occur in a real environment
-
-		CreateMethodProperty(Iterator.prototype, $iterator, function $iterator(
-			this: any
-		) {
-			return this;
-		});
-
-		try {
-			Object.defineProperty(Iterator.prototype[$iterator], "name", {
-				value: "[Symbol.iterator]",
 			});
 		} catch {}
 	}
 
-	// prettier-ignore
-	return /** @type {any} */ (Iterator);
+	if ($IteratorProto) {
+		$setProto!(IteratorPrototype, $IteratorProto);
+
+		CreateMethodProperty(
+			IteratorPrototype,
+			$iterator!,
+			// @ts-ignore
+			$IteratorProto[$iterator!],
+		);
+	} else if ($iterator) {
+		// This probably can't occur in a real environment
+
+		var func;
+		CreateMethodProperty(
+			IteratorPrototype,
+			$iterator,
+			(func = function Symbol_iterator(this: any) {
+				return this;
+			}),
+		);
+
+		try {
+			DefinePropertyOrThrow(func, "name", {
+				"[[Value]]": "[Symbol.iterator]",
+				"[[Configurable]]": true,
+			});
+		} catch {}
+	}
+
+	return Iterator;
 })();
 
 /** @type {import("./implementation.js").Iterator<*>} */
@@ -944,7 +1029,7 @@ define(WrapForValidIteratorPrototype, {
 		SLOT.assert(O, "[[Iterated]]");
 		let iterated: IteratorRecord<Iterator<any>> = SLOT.get(
 			O,
-			"[[Iterated]]"
+			"[[Iterated]]",
 		);
 		if (arguments.length > 0) {
 			return IteratorNext(iterated, value);
@@ -961,7 +1046,7 @@ define(WrapForValidIteratorPrototype, {
 			() => ({
 				done: true,
 				value: v!,
-			})
+			}),
 		);
 	},
 
@@ -970,11 +1055,11 @@ define(WrapForValidIteratorPrototype, {
 		SLOT.assert(O, "[[Iterated]]");
 		const iterator: IteratorRecord<Iterator<any>> = SLOT.get(
 			O,
-			"[[Iterated]]"
+			"[[Iterated]]",
 		);
 		const _throw: Iterator<any>["throw"] = GetMethod(
 			iterator["[[Iterator]]"],
-			"throw"
+			"throw",
 		);
 		if (_throw === undefined) {
 			throw v;
@@ -983,17 +1068,20 @@ define(WrapForValidIteratorPrototype, {
 	},
 });
 
-/** @type {typeof import("./implementation.js").AsyncIterator} */
-export const AsyncIterator: typeof $IteratorPolyfill = ((): any => {
-	function AsyncIterator() {
-		if (new.target === undefined) {
-			throw new $TypeError("Cannot call a class as a function");
+const AsyncIterator = (() => {
+	// @ts-ignore
+	/** @type {typeof import("./implementation.js").AsyncIterator} */
+	// prettier-ignore
+	const AsyncIterator: typeof $AsyncIteratorPolyfill = (
+		/** @constructor */
+		function AsyncIterator() {
+			if (new.target === undefined || new.target === AsyncIterator) {
+				throw new $TypeError("Abstract class constructor AsyncIterator cannot be invoked without 'super()'",);
+			}
 		}
-		if (new.target === AsyncIterator) {
-			throw new $TypeError("Cannot construct abstract class");
-		}
-	}
+	) as any;
 
+	const AsyncIteratorPrototype = AsyncIterator.prototype;
 	define(AsyncIterator, {
 		/**
 		 * @template T
@@ -1001,7 +1089,7 @@ export const AsyncIterator: typeof $IteratorPolyfill = ((): any => {
 		 * @return {import("./implementation.js").AsyncIterator<T>}
 		 */
 		from<T>(
-			O: Iterable<T> | Iterator<T> | AsyncIterable<T> | AsyncIterator<T>
+			O: Iterable<T> | Iterator<T> | AsyncIterable<T> | AsyncIterator<T>,
 		): $AsyncIteratorPolyfill<T> {
 			/** @type {(() => Iterator<T> | AsyncIterator<T>) | undefined} */
 			let usingIterator:
@@ -1016,7 +1104,7 @@ export const AsyncIterator: typeof $IteratorPolyfill = ((): any => {
 				iteratorRecord = GetIterator(O, "async", usingIterator);
 				let hasInstance = OrdinaryHasInstance(
 					AsyncIterator,
-					iteratorRecord["[[Iterator]]"]
+					iteratorRecord["[[Iterator]]"],
 				);
 				if (hasInstance) {
 					// prettier-ignore
@@ -1030,7 +1118,7 @@ export const AsyncIterator: typeof $IteratorPolyfill = ((): any => {
 				usingIterator = getIteratorMethod(ES, O);
 				if (usingIterator !== undefined) {
 					throw new $TypeError(
-						"async from sync iterators aren't currently supported"
+						"async from sync iterators aren't currently supported",
 					);
 					// let syncIteratorRecord = GetIterator(O, "sync", usingIterator as () => Iterator<T>);
 				}
@@ -1042,14 +1130,14 @@ export const AsyncIterator: typeof $IteratorPolyfill = ((): any => {
 
 			/** @type {import("./implementation.js").AsyncIterator<T>} */
 			let wrapper: $AsyncIteratorPolyfill<T> = OrdinaryObjectCreate(
-				WrapForValidAsyncIteratorPrototype
+				WrapForValidAsyncIteratorPrototype,
 			);
 			SLOT.set(wrapper, "[[AsyncIterated]]", iteratorRecord);
 			return wrapper;
 		},
 	});
 
-	define<ThisType<AsyncIterator<any>>>(AsyncIterator.prototype, {
+	define<ThisType<AsyncIterator<any>>>(AsyncIteratorPrototype, {
 		/**
 		 * @template T
 		 * @template U
@@ -1059,7 +1147,7 @@ export const AsyncIterator: typeof $IteratorPolyfill = ((): any => {
 		 */
 		async *map<T, U>(
 			this: Iterator<T> | AsyncIterator<T>,
-			mapper: (value: T) => U | PromiseLike<U>
+			mapper: (value: T) => U | PromiseLike<U>,
 		): AsyncGenerator<U, undefined> {
 			let iterated = GetIteratorDirect(this);
 			if (!IsCallable(mapper)) {
@@ -1110,7 +1198,7 @@ export const AsyncIterator: typeof $IteratorPolyfill = ((): any => {
 		 */
 		async *filter<T>(
 			this: Iterator<T> | AsyncIterator<T>,
-			filterer: (value: T) => unknown | PromiseLike<unknown>
+			filterer: (value: T) => unknown | PromiseLike<unknown>,
 		): AsyncGenerator<T, undefined> {
 			let iterated = GetIteratorDirect(this);
 			if (!IsCallable(filterer)) {
@@ -1165,7 +1253,7 @@ export const AsyncIterator: typeof $IteratorPolyfill = ((): any => {
 		 */
 		async *take<T>(
 			this: Iterator<T> | AsyncIterator<T>,
-			limit: number
+			limit: number,
 		): AsyncGenerator<T, undefined> {
 			let iterated = GetIteratorDirect(this);
 			let remaining = ToInteger(limit);
@@ -1201,7 +1289,7 @@ export const AsyncIterator: typeof $IteratorPolyfill = ((): any => {
 		 */
 		async *drop<T>(
 			this: Iterator<T> | AsyncIterator<T>,
-			limit: number
+			limit: number,
 		): AsyncGenerator<T, undefined> {
 			let iterated = GetIteratorDirect(this);
 			let remaining = ToInteger(limit);
@@ -1241,7 +1329,7 @@ export const AsyncIterator: typeof $IteratorPolyfill = ((): any => {
 		 * @return {AsyncGenerator<[number, T], undefined>}
 		 */
 		async *asIndexedPairs<T>(
-			this: Iterator<T> | AsyncIterator<T>
+			this: Iterator<T> | AsyncIterator<T>,
 		): AsyncGenerator<[number, T], undefined> {
 			let iterated = GetIteratorDirect(this);
 			let index = 0;
@@ -1281,11 +1369,11 @@ export const AsyncIterator: typeof $IteratorPolyfill = ((): any => {
 		async *flatMap<T, U>(
 			this: Iterator<T> | AsyncIterator<T>,
 			mapper: (
-				value: T
+				value: T,
 			) =>
 				| Iterable<U>
 				| AsyncIterable<U>
-				| Promise<Iterable<U> | AsyncIterable<U>>
+				| Promise<Iterable<U> | AsyncIterable<U>>,
 		): AsyncGenerator<U, undefined> {
 			let iterated = GetIteratorDirect(this);
 			if (!IsCallable(mapper)) {
@@ -1350,47 +1438,44 @@ export const AsyncIterator: typeof $IteratorPolyfill = ((): any => {
 		reduce<T, U>(
 			this: Iterator<T> | AsyncIterator<T>,
 			reducer: (accumulator: U, value: T) => U | PromiseLike<U>,
-			initialValue?: U
+			initialValue?: U,
 		): Promise<U> {
 			const _args = arguments;
 
 			/** @type {Iterator<T> | AsyncIterator<T>} */
 			let iterated: Iterator<T> | AsyncIterator<T>;
 
-			return $NewPromise()
-				.then(() => {
-					iterated = GetIteratorDirect(this);
-					if (!IsCallable(reducer)) {
-						throw new $TypeError(
-							inspect(reducer) + " is not a function"
-						);
-					}
+			return promiseThenChain(() => {
+				iterated = GetIteratorDirect(this);
+				if (!IsCallable(reducer)) {
+					throw new $TypeError(
+						inspect(reducer) + " is not a function",
+					);
+				}
 
-					if (_args.length < 2) {
-						return $NewPromise()
-							.then(() => IteratorNext(iterated))
-							.then((next: IteratorResult<any>) => {
-								if (IteratorComplete(next)) {
-									throw new $TypeError(
-										"reduce of empty iterator with no initial value"
-									);
-								}
-								return IteratorValue(next);
-							});
-					} else {
-						return initialValue;
-					}
-				})
-				.then(__recursive);
+				if (_args.length < 2) {
+					return promiseThenChain(
+						() => IteratorNext(iterated),
+						next => {
+							if (IteratorComplete(next)) {
+								throw new $TypeError(
+									"reduce of empty iterator with no initial value",
+								);
+							}
+							return IteratorValue(next);
+						},
+					);
+				} else {
+					return initialValue;
+				}
+			}, __recursive);
 
-			/**
-			 * @param {U} accumulator
-			 * @return {Promise<U>}
-			 */
+			/** @param {U} accumulator @return {Promise<U>} */
 			function __recursive(accumulator: U): Promise<U> {
-				return $NewPromise()
-					.then(() => IteratorNext(iterated))
-					.then((next: IteratorResult<T>) => {
+				return promiseThenChain(
+					() => IteratorNext(iterated),
+					/** @param {IteratorResult<T>} next */
+					(next: IteratorResult<T>) => {
 						if (IteratorComplete(next)) {
 							return accumulator;
 						}
@@ -1411,15 +1496,16 @@ export const AsyncIterator: typeof $IteratorPolyfill = ((): any => {
 							});
 						}
 
-						return $NewPromise(result).then<U>(
-							__recursive,
-							(e: any) => {
+						return promiseThenChain(() => result, {
+							onFulfilled: __recursive,
+							onRejected(e: any) {
 								return AsyncIteratorClose(iterated, () => {
 									throw e;
 								});
-							}
-						);
-					});
+							},
+						});
+					},
+				);
 			}
 		},
 
@@ -1432,24 +1518,20 @@ export const AsyncIterator: typeof $IteratorPolyfill = ((): any => {
 			/** @type {Iterator<T> | AsyncIterator<T>} */
 			let iterated: Iterator<T> | AsyncIterator<T>;
 
-			return $NewPromise()
-				.then(() => {
-					iterated = GetIteratorDirect(this);
+			return promiseThenChain(() => {
+				iterated = GetIteratorDirect(this);
 
-					/** @type {T[]} */
-					let items: T[] = [];
-					return items;
-				})
-				.then(__recursive);
+				/** @type {T[]} */
+				let items: T[] = [];
+				return items;
+			}, __recursive);
 
-			/**
-			 * @param {T[]} items
-			 * @return {Promise<T[]>}
-			 */
+			/** @param {T[]} items @return {Promise<T[]>} */
 			function __recursive(items: T[]): Promise<T[]> {
-				return $NewPromise()
-					.then(() => IteratorNext(iterated))
-					.then((next: IteratorResult<T>) => {
+				return promiseThenChain(
+					() => IteratorNext(iterated),
+					/** @param {IteratorResult<T>} next */
+					(next: IteratorResult<T>) => {
 						if (IteratorComplete(next)) {
 							return items;
 						}
@@ -1457,7 +1539,8 @@ export const AsyncIterator: typeof $IteratorPolyfill = ((): any => {
 						items.push(IteratorValue(next));
 
 						return __recursive(items);
-					});
+					},
+				);
 			}
 		},
 
@@ -1469,27 +1552,24 @@ export const AsyncIterator: typeof $IteratorPolyfill = ((): any => {
 		 */
 		forEach<T>(
 			this: Iterator<T> | AsyncIterator<T>,
-			fn: (value: T) => void | PromiseLike<void>
+			fn: (value: T) => void | PromiseLike<void>,
 		): Promise<void> {
 			/** @type {Iterator<T> | AsyncIterator<T>} */
 			let iterated: Iterator<T> | AsyncIterator<T>;
 
-			return $NewPromise()
-				.then(() => {
-					iterated = GetIteratorDirect(this);
-					if (!IsCallable(fn)) {
-						throw new $TypeError(
-							inspect(fn) + " is not a function"
-						);
-					}
-				})
-				.then(__recursive);
+			return promiseThenChain(() => {
+				iterated = GetIteratorDirect(this);
+				if (!IsCallable(fn)) {
+					throw new $TypeError(inspect(fn) + " is not a function");
+				}
+			}, __recursive);
 
 			/** @return {Promise<void>} */
 			function __recursive(): Promise<void> {
-				return $NewPromise()
-					.then(() => IteratorNext(iterated))
-					.then((next: IteratorResult<T>) => {
+				return promiseThenChain(
+					() => IteratorNext(iterated),
+					/** @param {IteratorResult<T>} next */
+					(next: IteratorResult<T>) => {
 						if (IteratorComplete(next)) {
 							return;
 						}
@@ -1508,12 +1588,16 @@ export const AsyncIterator: typeof $IteratorPolyfill = ((): any => {
 							});
 						}
 
-						return $NewPromise(r).then(__recursive, (e) => {
-							return AsyncIteratorClose(iterated, () => {
-								throw e;
-							});
+						return promiseThenChain(() => r, {
+							onFulfilled: __recursive,
+							onRejected(e) {
+								return AsyncIteratorClose(iterated, () => {
+									throw e;
+								});
+							},
 						});
-					});
+					},
+				);
 			}
 		},
 
@@ -1525,27 +1609,24 @@ export const AsyncIterator: typeof $IteratorPolyfill = ((): any => {
 		 */
 		some<T>(
 			this: Iterator<T> | AsyncIterator<T>,
-			fn: (value: T) => unknown
+			fn: (value: T) => unknown,
 		): Promise<boolean> {
 			/** @type {Iterator<T> | AsyncIterator<T>} */
 			let iterated: Iterator<T> | AsyncIterator<T>;
 
-			return $NewPromise()
-				.then(() => {
-					iterated = GetIteratorDirect(this);
-					if (!IsCallable(fn)) {
-						throw new $TypeError(
-							inspect(fn) + " is not a function"
-						);
-					}
-				})
-				.then(__recursive);
+			return promiseThenChain(() => {
+				iterated = GetIteratorDirect(this);
+				if (!IsCallable(fn)) {
+					throw new $TypeError(inspect(fn) + " is not a function");
+				}
+			}, __recursive);
 
 			/** @return {Promise<boolean>} */
 			function __recursive(): Promise<boolean> {
-				return $NewPromise()
-					.then(() => IteratorNext(iterated))
-					.then((next: IteratorResult<T>) => {
+				return promiseThenChain(
+					() => IteratorNext(iterated),
+					/** @param {IteratorResult<T>} next */
+					(next: IteratorResult<T>) => {
 						if (IteratorComplete(next)) {
 							return false;
 						}
@@ -1563,16 +1644,18 @@ export const AsyncIterator: typeof $IteratorPolyfill = ((): any => {
 							});
 						}
 
-						return $NewPromise(result).then(
-							(result) =>
-								ToBoolean(result) ? true : __recursive(),
-							(e) => {
+						return promiseThenChain(() => result, {
+							onFulfilled(result) {
+								return ToBoolean(result) ? true : __recursive();
+							},
+							onRejected(e) {
 								return AsyncIteratorClose(iterated, () => {
 									throw e;
 								});
-							}
-						);
-					});
+							},
+						});
+					},
+				);
 			}
 		},
 
@@ -1584,27 +1667,24 @@ export const AsyncIterator: typeof $IteratorPolyfill = ((): any => {
 		 */
 		every<T>(
 			this: Iterator<T> | AsyncIterator<T>,
-			fn: (value: T) => unknown
+			fn: (value: T) => unknown,
 		): Promise<boolean> {
 			/** @type {Iterator<T> | AsyncIterator<T>} */
 			let iterated: Iterator<T> | AsyncIterator<T>;
 
-			return $NewPromise()
-				.then(() => {
-					iterated = GetIteratorDirect(this);
-					if (!IsCallable(fn)) {
-						throw new $TypeError(
-							inspect(fn) + " is not a function"
-						);
-					}
-				})
-				.then(__recursive);
+			return promiseThenChain(() => {
+				iterated = GetIteratorDirect(this);
+				if (!IsCallable(fn)) {
+					throw new $TypeError(inspect(fn) + " is not a function");
+				}
+			}, __recursive);
 
 			/** @return {Promise<boolean>} */
 			function __recursive(): Promise<boolean> {
-				return $NewPromise()
-					.then(() => IteratorNext(iterated))
-					.then((next: IteratorResult<T>) => {
+				return promiseThenChain(
+					() => IteratorNext(iterated),
+					/** @param {IteratorResult<T>} next */
+					(next: IteratorResult<T>) => {
 						if (IteratorComplete(next)) {
 							return true;
 						}
@@ -1622,16 +1702,20 @@ export const AsyncIterator: typeof $IteratorPolyfill = ((): any => {
 							});
 						}
 
-						return $NewPromise(result).then(
-							(result) =>
-								ToBoolean(result) ? __recursive() : false,
-							(e) => {
+						return promiseThenChain(() => result, {
+							onFulfilled(result) {
+								return ToBoolean(result)
+									? __recursive()
+									: false;
+							},
+							onRejected(e) {
 								return AsyncIteratorClose(iterated, () => {
 									throw e;
 								});
-							}
-						);
-					});
+							},
+						});
+					},
+				);
 			}
 		},
 
@@ -1643,29 +1727,26 @@ export const AsyncIterator: typeof $IteratorPolyfill = ((): any => {
 		 */
 		find<T>(
 			this: Iterator<T> | AsyncIterator<T>,
-			fn: (value: T) => unknown
+			fn: (value: T) => unknown,
 		): Promise<T | undefined> {
 			/** @type {Iterator<T> | AsyncIterator<T>} */
 			let iterated: Iterator<T> | AsyncIterator<T>;
 
-			return $NewPromise()
-				.then(() => {
-					iterated = GetIteratorDirect(this);
-					if (!IsCallable(fn)) {
-						throw new $TypeError(
-							inspect(fn) + " is not a function"
-						);
-					}
-				})
-				.then(__recursive);
+			return promiseThenChain(() => {
+				iterated = GetIteratorDirect(this);
+				if (!IsCallable(fn)) {
+					throw new $TypeError(inspect(fn) + " is not a function");
+				}
+			}, __recursive);
 
 			/** @return {Promise<T | undefined>} */
 			function __recursive(): Promise<T | undefined> {
-				return $NewPromise()
-					.then(() => IteratorNext(iterated))
-					.then((next: IteratorResult<T>) => {
+				return promiseThenChain(
+					() => IteratorNext(iterated),
+					/** @param {IteratorResult<T>} next */
+					(next: IteratorResult<T>) => {
 						if (IteratorComplete(next)) {
-							return undefined;
+							return;
 						}
 
 						/** @type {T} */
@@ -1681,69 +1762,64 @@ export const AsyncIterator: typeof $IteratorPolyfill = ((): any => {
 							});
 						}
 
-						return $NewPromise(result).then(
-							(result) =>
-								ToBoolean(result) ? value : __recursive(),
-							(e) => {
+						return promiseThenChain(() => result, {
+							onFulfilled(result) {
+								return ToBoolean(result)
+									? value
+									: __recursive();
+							},
+							onRejected(e) {
 								return AsyncIteratorClose(iterated, () => {
 									throw e;
 								});
-							}
-						);
-					});
+							},
+						});
+					},
+				);
 			}
 		},
 	});
 
 	if ($toStringTag) {
-		DefineOwnProperty(
-			IsDataDescriptor,
-			SameValue,
-			FromPropertyDescriptor,
-			AsyncIterator.prototype,
-			$toStringTag,
-			{
+		try {
+			DefinePropertyOrThrow(AsyncIteratorPrototype, $toStringTag, {
 				"[[Value]]": "AsyncIterator",
 				"[[Configurable]]": true,
-			}
-		);
+			});
+		} catch {}
 	}
 
 	if ($AsyncIteratorProto) {
-		$setProto!(AsyncIterator.prototype, $AsyncIteratorProto);
-
+		$setProto!(AsyncIteratorPrototype, $AsyncIteratorProto);
 		CreateMethodProperty(
-			AsyncIterator.prototype,
+			AsyncIteratorPrototype,
 			$asyncIterator!,
 			// @ts-ignore
-			$AsyncIteratorProto[$asyncIterator!]
+			$AsyncIteratorProto[$asyncIterator!],
 		);
 	} else if ($asyncIterator) {
 		// This can only occur in an ES2015-ES2017 environment where
 		// a polyfill installs Symbol.asyncIterator before ES-Abstract
 		// has been initialised.
 
+		var func;
 		CreateMethodProperty(
-			AsyncIterator.prototype,
+			AsyncIteratorPrototype,
 			$asyncIterator,
-			function $asyncIterator(this: any) {
+			(func = function Symbol_asyncIterator(this: any) {
 				return this;
-			}
+			}),
 		);
 
 		try {
-			Object.defineProperty(
-				AsyncIterator.prototype[$asyncIterator],
-				"name",
-				{
-					value: "[Symbol.asyncIterator]",
-				}
-			);
+			DefinePropertyOrThrow(func, "name", {
+				"[[Value]]": "[Symbol.asyncIterator]",
+				"[[Configurable]]": true,
+			});
 		} catch {}
 	}
 
-	// prettier-ignore
-	return /** @type {any} */ (AsyncIterator);
+	return AsyncIterator;
 })();
 
 /** @type {import("./implementation.js").AsyncIterator<*>} */
@@ -1752,43 +1828,50 @@ const WrapForValidAsyncIteratorPrototype: $AsyncIteratorPolyfill<any> = Ordinary
 define(WrapForValidAsyncIteratorPrototype, {
 	next(value?: any): Promise<IteratorResult<any, any>> {
 		const O = this;
-		SLOT.assert(O, "[[AsyncIterated]]");
-		let iterated: IteratorRecord<
-			Iterator<any> | AsyncIterator<any>
-		> = SLOT.get(O, "[[AsyncIterated]]");
-		let result:
-			| IteratorResult<any, any>
-			| PromiseLike<IteratorResult<any, any>>;
-		if (arguments.length > 0) {
-			result = IteratorNext(iterated, value);
-		} else {
-			result = IteratorNext(iterated);
-		}
-		return $NewPromise(result);
+		const { length } = arguments;
+
+		return new $Promise(resolve => {
+			SLOT.assert(O, "[[AsyncIterated]]");
+			let iterated: IteratorRecord<
+				Iterator<any> | AsyncIterator<any>
+			> = SLOT.get(O, "[[AsyncIterated]]");
+			if (length > 0) {
+				resolve(IteratorNext(iterated, value));
+			} else {
+				resolve(IteratorNext(iterated));
+			}
+		});
 	},
 
-	return<TReturn>(v?: TReturn): Promise<IteratorResult<never, TReturn>> {
+	return<TReturn>(v?: TReturn): Promise<IteratorResult<any, TReturn>> {
 		const O = this;
-		SLOT.assert(O, "[[AsyncIterated]]");
-		return AsyncIteratorClose(
-			SLOT.get(O, "[[AsyncIterated]]")["[[Iterator]]"],
-			() => ({
-				done: true,
-				value: v!,
-			})
-		);
+		return new $Promise(resolve => {
+			SLOT.assert(O, "[[AsyncIterated]]");
+			resolve(
+				AsyncIteratorClose(SLOT.get(O, "[[AsyncIterated]]"), () => {
+					return {
+						done: true,
+						value: v!,
+					};
+				}),
+			);
+		});
 	},
 
 	throw(v?: any): Promise<IteratorResult<any>> {
 		const O = this;
-		SLOT.assert(O, "[[AsyncIterated]]");
-		const iterator: IteratorRecord<
-			Iterator<any> | AsyncIterator<any>
-		> = SLOT.get(O, "[[AsyncIterated]]");
-		const _throw = GetMethod(iterator["[[Iterator]]"], "throw");
-		if (_throw === undefined) {
-			throw v;
-		}
-		return $NewPromise(Call(_throw, iterator, [v]));
+		return new $Promise(resolve => {
+			SLOT.assert(O, "[[AsyncIterated]]");
+			const iterator: IteratorRecord<
+				Iterator<any> | AsyncIterator<any>
+			> = SLOT.get(O, "[[AsyncIterated]]");
+			const _throw = GetMethod(iterator["[[Iterator]]"], "throw");
+			if (_throw === undefined) {
+				throw v;
+			}
+			resolve(Call(_throw, iterator, [v]));
+		});
 	},
 });
+
+export { Iterator, AsyncIterator };

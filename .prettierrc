@@ -1,12 +1,13 @@
 {
 	"trailingComma": "none",
 	"proseWrap": "always",
+	"arrowParens": "avoid",
 
 	"overrides": [
 		{
 			"files": ["*.ts"],
 			"options": {
-				"trailingComma": "es5"
+				"trailingComma": "all"
 			}
 		},
 		{
