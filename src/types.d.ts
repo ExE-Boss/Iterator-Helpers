@@ -5,7 +5,6 @@ declare module "es-abstract/2018/CreateMethodProperty.js" { import ES2018 = requ
 declare module "es-abstract/2018/DefinePropertyOrThrow.js" { import ES2018 = require("es-abstract/es2018.js"); export = ES2018.DefinePropertyOrThrow; }
 declare module "es-abstract/2018/GetMethod.js" { import ES2018 = require("es-abstract/es2018.js"); export = ES2018.GetMethod; }
 declare module "es-abstract/2018/GetV.js" { import ES2018 = require("es-abstract/es2018.js"); export = ES2018.GetV; }
-declare module "es-abstract/2018/Invoke.js" { import ES2018 = require("es-abstract/es2018.js"); export = ES2018.Invoke; }
 declare module "es-abstract/2018/IsArray.js" { import ES2018 = require("es-abstract/es2018.js"); export = ES2018.IsArray; }
 declare module "es-abstract/2018/IsCallable.js" { import ES2018 = require("es-abstract/es2018.js"); export = ES2018.IsCallable; }
 declare module "es-abstract/2018/IsConstructor.js" { import ES2018 = require("es-abstract/es2018.js"); export = ES2018.IsConstructor; }

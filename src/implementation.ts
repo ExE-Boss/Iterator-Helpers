@@ -18,7 +18,6 @@ import CreateMethodProperty = require("es-abstract/2018/CreateMethodProperty.js"
 import DefinePropertyOrThrow = require("es-abstract/2018/DefinePropertyOrThrow.js");
 import GetMethod = require("es-abstract/2018/GetMethod.js");
 import GetV = require("es-abstract/2018/GetV.js");
-import Invoke = require("es-abstract/2018/Invoke.js");
 import IsArray = require("es-abstract/2018/IsArray.js");
 import IsCallable = require("es-abstract/2018/IsCallable.js");
 import IteratorClose = require("es-abstract/2018/IteratorClose.js");
@@ -41,9 +40,7 @@ import callBound = require("es-abstract/helpers/callBound.js");
 import getIteratorMethod = require("es-abstract/helpers/getIteratorMethod.js");
 import $setProto = require("es-abstract/helpers/setProto.js");
 
-import bind = require("function-bind");
 import define = require("define-properties");
-import hasOwnProperty = require("has");
 import inspect = require("object-inspect");
 import SLOT = require("internal-slot");
 
@@ -143,13 +140,8 @@ function GetIterator<
 >;
 
 /**
- * @template T, F
- * @typedef {F extends (...args: infer A) => infer R ? (this: T, ...args: A) => R : F} SetThisType
- */
-
-/**
  * @template {globalThis.Iterator<any, any, any> | globalThis.AsyncIterator<any, any, any>} I
- * @typedef {{"[[Iterator]]": I, "[[NextMethod]]": SetThisType<I, I["next"]>, "[[Done]]": boolean}} IteratorRecord
+ * @typedef {{"[[Iterator]]": I, "[[NextMethod]]": I["next"], "[[Done]]": boolean}} IteratorRecord
  */
 
 /**
@@ -317,20 +309,11 @@ function AsyncIteratorClose<T>(
 		| IteratorRecord<AsyncIteratorLike<any, any, any>>,
 	completion: () => T | PromiseLike<T>,
 ): Promise<T> {
-	/** @type {globalThis.Iterator<any, any, unknown> | globalThis.AsyncIterator<any, any, unknown>} */
-	let iterator:
-		| IteratorLike<any, any, unknown>
-		| AsyncIteratorLike<any, any, unknown>;
-
-	if (hasOwnProperty(iteratorRecord, "[[Iterator]]")) {
-		if (Type(iteratorRecord["[[Iterator]]"]) !== "Object") {
-			throw new $TypeError(
-				"Assertion failed: Type(iteratorRecord.[[Iterator]]) is not Object",
-			);
-		}
-		iterator = iteratorRecord["[[Iterator]]"];
-	} else {
-		iterator = iteratorRecord;
+	const iterator = iteratorRecord["[[Iterator]]"];
+	if (Type(iterator) !== "Object") {
+		throw new $TypeError(
+			"Assertion failed: Type(iteratorRecord.[[Iterator]]) is not Object",
+		);
 	}
 
 	if (!IsCallable(completion)) {
@@ -340,7 +323,7 @@ function AsyncIteratorClose<T>(
 	}
 
 	return promiseThenChain(() => {
-		let iteratorReturn = GetMethod(iterator, "return")!;
+		const iteratorReturn = GetMethod(iterator, "return")!;
 		if (iteratorReturn === void 0) {
 			return completion();
 		}
@@ -377,22 +360,12 @@ function GetIteratorDirect<O extends object>(
 ): O extends IteratorLike<any, any, any> | AsyncIteratorLike<any, any, any>
 	? IteratorRecord<O>
 	: never;
-function GetIteratorDirect<O extends object>(
-	obj: O,
-	useIteratorRecord: false,
-): O extends IteratorLike<any, any, any> | AsyncIteratorLike<any, any, any>
-	? O
-	: never;
 
 /**
  * @template O
  * @param {O} obj
- * @param {boolean} [useIteratorRecord]
  */
-function GetIteratorDirect<O extends object>(
-	obj: O,
-	useIteratorRecord: boolean = true,
-) {
+function GetIteratorDirect<O extends object>(obj: O) {
 	if (Type(obj) !== "Object") {
 		throw new $TypeError("obj must be an Object, got " + Type(obj));
 	}
@@ -400,45 +373,33 @@ function GetIteratorDirect<O extends object>(
 	if (!IsCallable(nextMethod)) {
 		throw new $TypeError(inspect(nextMethod) + " is not a function");
 	}
-	// prettier-ignore
-	return useIteratorRecord
-		? {
-			"[[Iterator]]": obj,
-			"[[NextMethod]]": nextMethod,
-			"[[Done]]": false,
-		}
-		: obj;
+	return {
+		"[[Iterator]]": obj,
+		"[[NextMethod]]": nextMethod,
+		"[[Done]]": false,
+	};
 }
 
 function IteratorStep<T>(
-	iterator: IteratorLike<T> | IteratorRecord<IteratorLike<T>>,
+	iteratorRecord: IteratorRecord<IteratorLike<T>>,
 ): IteratorYieldResult<T> | false;
 function IteratorStep<T, TNext = undefined>(
-	iterator:
-		| IteratorLike<T, any, TNext>
-		| IteratorRecord<IteratorLike<T, any, TNext>>,
+	iteratorRecord: IteratorRecord<IteratorLike<T, any, TNext>>,
 	value: TNext,
 ): IteratorYieldResult<T> | false;
 
 /**
  * @template T, TReturn, TNext
- * @param {globalThis.Iterator<T, TReturn, TNext> | IteratorRecord<globalThis.Iterator<T, TReturn, TNext>>} iterator
+ * @param {IteratorRecord<globalThis.Iterator<T, TReturn, TNext>>} iteratorRecord
  * @param {TNext} [value]
  * @return {false | IteratorYieldResult<T>}
  */
 function IteratorStep<T, TReturn, TNext>(
-	iterator:
-		| IteratorLike<T, TReturn, TNext>
-		| IteratorRecord<IteratorLike<T, TReturn, TNext>>,
+	iteratorRecord: IteratorRecord<IteratorLike<T, TReturn, TNext>>,
 	value?: TNext,
 ): false | IteratorYieldResult<T> {
 	/** @type {IteratorResult<T, TReturn>} */
 	let result: IteratorResult<T, TReturn>;
-	let iteratorRecord = iterator;
-	if (!hasOwnProperty(iteratorRecord, "[[Iterator]]")) {
-		iteratorRecord = GetIteratorDirect(iterator);
-	}
-
 	if (arguments.length > 1) {
 		result = IteratorNext(iteratorRecord, value);
 	} else {
@@ -466,13 +427,13 @@ function IteratorNext<T, TReturn = unknown, TNext = undefined>(
  * @return {IteratorResult<T, TReturn>}
  */
 function IteratorNext<T, TReturn = unknown, TNext = undefined>(
-	iterator: IteratorRecord<{ next(value?: TNext): any }>,
+	iteratorRecord: IteratorRecord<{ next(value?: TNext): any }>,
 	value: TNext,
 ): IteratorResult<T, TReturn> | Promise<IteratorResult<T, TReturn>> {
 	/** @type {any} */
 	let result: any = Call(
-		iterator["[[NextMethod]]"],
-		iterator["[[Iterator]]"],
+		iteratorRecord["[[NextMethod]]"],
+		iteratorRecord["[[Iterator]]"],
 		arguments.length < 2 ? [] : [value],
 	);
 	if (Type(result) !== "Object") {
@@ -549,7 +510,7 @@ const Iterator = (() => {
 			this: IteratorLike<T>,
 			mapper: (value: T) => U,
 		): Generator<U, void> {
-			let iterated = GetIteratorDirect(this, false);
+			let iterated = GetIteratorDirect(this);
 			if (!IsCallable(mapper)) {
 				throw new $TypeError(inspect(mapper) + " is not a function");
 			}
@@ -565,7 +526,7 @@ const Iterator = (() => {
 				try {
 					lastValue = yield Call(mapper, undefined, [value]);
 				} catch (e) {
-					return IteratorClose(iterated, () => {
+					return IteratorClose(iterated["[[Iterator]]"], () => {
 						throw e;
 					});
 				}
@@ -582,7 +543,7 @@ const Iterator = (() => {
 			this: IteratorLike<T>,
 			filterer: (value: T) => unknown,
 		): Generator<T, void> {
-			let iterated = GetIteratorDirect(this, false);
+			let iterated = GetIteratorDirect(this);
 			if (!IsCallable(filterer)) {
 				throw new $TypeError(inspect(filterer) + " is not a function");
 			}
@@ -600,7 +561,7 @@ const Iterator = (() => {
 						lastValue = yield value;
 					}
 				} catch (e) {
-					return IteratorClose(iterated, () => {
+					return IteratorClose(iterated["[[Iterator]]"], () => {
 						throw e;
 					});
 				}
@@ -614,7 +575,7 @@ const Iterator = (() => {
 		 * @return {Generator<T, void>}
 		 */
 		*take<T>(this: IteratorLike<T>, limit: number): Generator<T, void> {
-			let iterated = GetIteratorDirect(this, false);
+			let iterated = GetIteratorDirect(this);
 			let remaining = ToInteger(limit);
 			if (remaining < 0) {
 				throw new $RangeError("limit must be >= 0");
@@ -631,13 +592,13 @@ const Iterator = (() => {
 				try {
 					lastValue = yield IteratorValue(next);
 				} catch (e) {
-					return IteratorClose(iterated, () => {
+					return IteratorClose(iterated["[[Iterator]]"], () => {
 						throw e;
 					});
 				}
 			}
 
-			return IteratorClose(iterated, noop);
+			return IteratorClose(iterated["[[Iterator]]"], noop);
 		},
 
 		/**
@@ -647,7 +608,7 @@ const Iterator = (() => {
 		 * @return {Generator<T, void>}
 		 */
 		*drop<T>(this: IteratorLike<T>, limit: number): Generator<T, void> {
-			let iterated = GetIteratorDirect(this, false);
+			let iterated = GetIteratorDirect(this);
 			let remaining = ToInteger(limit);
 			if (remaining < 0) {
 				throw new $RangeError("limit must be >= 0");
@@ -669,7 +630,7 @@ const Iterator = (() => {
 				try {
 					lastValue = yield IteratorValue(next);
 				} catch (e) {
-					return IteratorClose(iterated, () => {
+					return IteratorClose(iterated["[[Iterator]]"], () => {
 						throw e;
 					});
 				}
@@ -684,7 +645,7 @@ const Iterator = (() => {
 		*asIndexedPairs<T>(
 			this: IteratorLike<T>,
 		): Generator<[number, T], undefined> {
-			let iterated = GetIteratorDirect(this, false);
+			let iterated = GetIteratorDirect(this);
 			let index = 0;
 
 			/** @type {unknown} */
@@ -702,7 +663,7 @@ const Iterator = (() => {
 				try {
 					lastValue = yield pair;
 				} catch (e) {
-					return IteratorClose(iterated, () => {
+					return IteratorClose(iterated["[[Iterator]]"], () => {
 						throw e;
 					});
 				}
@@ -719,7 +680,7 @@ const Iterator = (() => {
 			this: IteratorLike<T>,
 			mapper: (value: T) => Iterable<U>,
 		): Generator<U, void> {
-			let iterated = GetIteratorDirect(this, false);
+			let iterated = GetIteratorDirect(this);
 			if (!IsCallable(mapper)) {
 				throw new $TypeError(inspect(mapper) + " is not a function");
 			}
@@ -740,7 +701,7 @@ const Iterator = (() => {
 						yield IteratorValue(innerNext);
 					}
 				} catch (e) {
-					return IteratorClose(iterated, () => {
+					return IteratorClose(iterated["[[Iterator]]"], () => {
 						throw e;
 					});
 				}
@@ -770,7 +731,7 @@ const Iterator = (() => {
 		): U {
 			/** @type {U} */
 			const initialValue: U = arguments[1];
-			const iterated = GetIteratorDirect(this, false);
+			const iterated = GetIteratorDirect(this);
 
 			if (!IsCallable(reducer)) {
 				throw new $TypeError(inspect(reducer) + " is not a function");
@@ -801,7 +762,7 @@ const Iterator = (() => {
 				try {
 					result = Call(reducer, undefined, [accumulator, value]);
 				} catch (e) {
-					return IteratorClose(iterated, () => {
+					return IteratorClose(iterated["[[Iterator]]"], () => {
 						throw e;
 					});
 				}
@@ -817,7 +778,7 @@ const Iterator = (() => {
 		 * @return {T[]}
 		 */
 		toArray<T>(this: IteratorLike<T>): T[] {
-			let iterated = GetIteratorDirect(this, false);
+			let iterated = GetIteratorDirect(this);
 			/** @type {T[]} */
 			let items: T[] = [];
 
@@ -836,7 +797,7 @@ const Iterator = (() => {
 		 * @param {(value: T) => void} fn
 		 */
 		forEach<T>(this: IteratorLike<T>, fn: (value: T) => void): void {
-			let iterated = GetIteratorDirect(this, false);
+			let iterated = GetIteratorDirect(this);
 			if (!IsCallable(fn)) {
 				throw new $TypeError(inspect(fn) + " is not a function");
 			}
@@ -850,7 +811,7 @@ const Iterator = (() => {
 				try {
 					Call(fn, undefined, [value]);
 				} catch (e) {
-					return IteratorClose(iterated, () => {
+					return IteratorClose(iterated["[[Iterator]]"], () => {
 						throw e;
 					});
 				}
@@ -864,7 +825,7 @@ const Iterator = (() => {
 		 * @return {boolean}
 		 */
 		some<T>(this: IteratorLike<T>, fn: (value: T) => unknown): boolean {
-			let iterated = GetIteratorDirect(this, false);
+			let iterated = GetIteratorDirect(this);
 			if (!IsCallable(fn)) {
 				throw new $TypeError(inspect(fn) + " is not a function");
 			}
@@ -879,7 +840,7 @@ const Iterator = (() => {
 				try {
 					result = Call(fn, undefined, [value]);
 				} catch (e) {
-					return IteratorClose(iterated, () => {
+					return IteratorClose(iterated["[[Iterator]]"], () => {
 						throw e;
 					});
 				}
@@ -898,7 +859,7 @@ const Iterator = (() => {
 		 * @return {boolean}
 		 */
 		every<T>(this: IteratorLike<T>, fn: (value: T) => unknown): boolean {
-			let iterated = GetIteratorDirect(this, false);
+			let iterated = GetIteratorDirect(this);
 			if (!IsCallable(fn)) {
 				throw new $TypeError(inspect(fn) + " is not a function");
 			}
@@ -913,7 +874,7 @@ const Iterator = (() => {
 				try {
 					result = Call(fn, undefined, [value]);
 				} catch (e) {
-					return IteratorClose(iterated, () => {
+					return IteratorClose(iterated["[[Iterator]]"], () => {
 						throw e;
 					});
 				}
@@ -935,7 +896,7 @@ const Iterator = (() => {
 			this: IteratorLike<T>,
 			fn: (value: unknown) => unknown,
 		): T | undefined {
-			let iterated = GetIteratorDirect(this, false);
+			let iterated = GetIteratorDirect(this);
 			if (!IsCallable(fn)) {
 				throw new $TypeError(inspect(fn) + " is not a function");
 			}
@@ -950,7 +911,7 @@ const Iterator = (() => {
 				try {
 					result = Call(fn, undefined, [value]);
 				} catch (e) {
-					return IteratorClose(iterated, () => {
+					return IteratorClose(iterated["[[Iterator]]"], () => {
 						throw e;
 					});
 				}

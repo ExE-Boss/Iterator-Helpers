@@ -10,7 +10,7 @@ var forEach = require("es-abstract/helpers/forEach.js");
 /** @type {{[x: string]: any}} */
 var global = require("globalthis")();
 var define = require("define-properties");
-var has = require("has");
+var hasOwnProperty = require("has");
 
 var $IteratorPrototype = GetIntrinsic("%IteratorPrototype%", true);
 var $AsyncIteratorPrototype = GetIntrinsic("%AsyncIteratorPrototype%", true);
@@ -33,7 +33,7 @@ function CopyOwnProperties(target, source) {
 	}
 	forEach(OwnPropertyKeys(target), function (key) {
 		var desc = OrdinaryGetOwnProperty(source, key);
-		if (desc && !has(target, key)) {
+		if (desc && !hasOwnProperty(target, key)) {
 			DefinePropertyOrThrow(target, key, desc);
 		}
 		// @ts-ignore
@@ -51,10 +51,10 @@ module.exports = function shimIteratorHelpers() {
 	var AsyncIteratorPolyfill = polyfill.AsyncIterator;
 	var AsyncIteratorPolyfillPrototype = AsyncIteratorPolyfill.prototype;
 
-	if (has(global, "Iterator") && global.Iterator !== IteratorPolyfill) {
+	if (hasOwnProperty(global, "Iterator") && global.Iterator !== IteratorPolyfill) {
 		forceSync = true;
 	}
-	if (has(global, "AsyncIterator") && global.AsyncIterator !== AsyncIteratorPolyfill) {
+	if (hasOwnProperty(global, "AsyncIterator") && global.AsyncIterator !== AsyncIteratorPolyfill) {
 		forceAsync = true;
 	}
 
