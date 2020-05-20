@@ -6,6 +6,7 @@ var OrdinaryGetOwnProperty = require("es-abstract/2018/OrdinaryGetOwnProperty.js
 
 var OwnPropertyKeys = require("es-abstract/helpers/OwnPropertyKeys.js");
 var forEach = require("es-abstract/helpers/forEach.js");
+var $setProto = require("es-abstract/helpers/setProto.js");
 
 /** @type {{[x: string]: any}} */
 var global = require("globalthis")();
@@ -14,8 +15,12 @@ var hasOwnProperty = require("has");
 
 var $IteratorPrototype = GetIntrinsic("%IteratorPrototype%", true);
 var $AsyncIteratorPrototype = GetIntrinsic("%AsyncIteratorPrototype%", true);
+var $AsyncGeneratorPrototype =
+	/** @type {AsyncGenerator | undefined} */
+	(GetIntrinsic("%AsyncGeneratorPrototype%", true));
 
-var getPolyfill = require("./polyfill");
+var getPolyfill = require("./polyfill.js");
+var util = require("./util.js");
 
 /**
  * Copies all own properties from `target` to `source`
@@ -25,11 +30,11 @@ var getPolyfill = require("./polyfill");
  * @template {object} S
  * @param {T} target
  * @param {S} source
- * @return {T & Omit<S, keyof T>}
+ * @return {any}
  */
 function CopyOwnProperties(target, source) {
 	if (!IsExtensible(target)) {
-		return /** @type {*} */ (source);
+		return source;
 	}
 	forEach(OwnPropertyKeys(target), function (key) {
 		var desc = OrdinaryGetOwnProperty(source, key);
@@ -39,7 +44,7 @@ function CopyOwnProperties(target, source) {
 		// @ts-ignore
 		delete source[key];
 	});
-	return /** @type {*} */ (target);
+	return target;
 }
 
 module.exports = function shimIteratorHelpers() {
@@ -51,10 +56,16 @@ module.exports = function shimIteratorHelpers() {
 	var AsyncIteratorPolyfill = polyfill.AsyncIterator;
 	var AsyncIteratorPolyfillPrototype = AsyncIteratorPolyfill.prototype;
 
-	if (hasOwnProperty(global, "Iterator") && global.Iterator !== IteratorPolyfill) {
+	if (
+		hasOwnProperty(global, "Iterator") &&
+		global.Iterator !== IteratorPolyfill
+	) {
 		forceSync = true;
 	}
-	if (hasOwnProperty(global, "AsyncIterator") && global.AsyncIterator !== AsyncIteratorPolyfill) {
+	if (
+		hasOwnProperty(global, "AsyncIterator") &&
+		global.AsyncIterator !== AsyncIteratorPolyfill
+	) {
 		forceAsync = true;
 	}
 
@@ -64,10 +75,10 @@ module.exports = function shimIteratorHelpers() {
 		$IteratorPrototype !== IteratorPolyfillPrototype
 	) {
 		DefinePropertyOrThrow(IteratorPolyfill, "prototype", {
-			"[[Value]]": CopyOwnProperties(
+			"[[Value]]": (IteratorPolyfillPrototype = CopyOwnProperties(
 				$IteratorPrototype,
 				IteratorPolyfillPrototype
-			),
+			)),
 			"[[Writable]]": false
 		});
 	}
@@ -78,10 +89,10 @@ module.exports = function shimIteratorHelpers() {
 		$AsyncIteratorPrototype !== AsyncIteratorPolyfillPrototype
 	) {
 		DefinePropertyOrThrow(AsyncIteratorPolyfill, "prototype", {
-			"[[Value]]": CopyOwnProperties(
+			"[[Value]]": (AsyncIteratorPolyfillPrototype = CopyOwnProperties(
 				$AsyncIteratorPrototype,
 				AsyncIteratorPolyfillPrototype
-			),
+			)),
 			"[[Writable]]": false
 		});
 	}

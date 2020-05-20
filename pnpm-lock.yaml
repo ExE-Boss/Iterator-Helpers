@@ -10,8 +10,8 @@ devDependencies:
   '@exe-boss/eslint-config': 0.2.2_eslint@7.0.0
   '@types/define-properties': 1.1.3
   '@types/es-abstract': 1.16.1
-  '@types/function-bind': 1.1.3
   '@types/globalthis': 1.0.1
+  '@types/has': 1.0.0
   '@types/internal-slot': 1.0.1
   '@types/object-inspect': 1.6.1
   eslint: 7.0.0
@@ -62,14 +62,14 @@ packages:
     dev: true
     resolution:
       integrity: sha512-PVQF+wlxOaVKZ/XZfS55gfvkFQzRQYqwAkmf9fLNC4ww0VxY+/FUXFCNAkqY1QH7uAppNePWzWkmCryKBhXdHw==
-  /@types/function-bind/1.1.3:
-    dev: true
-    resolution:
-      integrity: sha512-NEGQmbwEdXDJ2WAp7/ggTX3nDb5VZvC+/Mqkm152xwKQkvlhHhM63Uv7ZNaCVOjwVt62ONPi5qy8msRo61iRVA==
   /@types/globalthis/1.0.1:
     dev: true
     resolution:
       integrity: sha512-gPIOjEAp9ZysUzOYlwuaedjwxRW9QvMhlN5PSWCXYEw894QB/84YgXSsei8yE6D/FstC1QIrHgO7UfQ2A37M0Q==
+  /@types/has/1.0.0:
+    dev: true
+    resolution:
+      integrity: sha512-1J4U6Ipq5B+ytzNa9XWYg+U5cI5nt12a+RiISbKD9a74QDoRVhoBd6GPtd+imkqQRaTGO1l6bvdP1cqsM6dCpw==
   /@types/internal-slot/1.0.1:
     dev: true
     resolution:
@@ -1127,8 +1127,8 @@ specifiers:
   '@exe-boss/eslint-config': ^0.2.2
   '@types/define-properties': ^1.1.3
   '@types/es-abstract': ^1.16.1
-  '@types/function-bind': ^1.1.3
   '@types/globalthis': ^1.0.1
+  '@types/has': ^1.0.0
   '@types/internal-slot': ^1.0.1
   '@types/object-inspect': ^1.6.1
   define-properties: ^1.1.3

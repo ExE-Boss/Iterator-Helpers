@@ -125,7 +125,7 @@ export namespace __generator {
 		| EndFinallyOp;
 	type Body<T, TYield, TReturn = any, TNext = any> = (
 		this: T,
-		state: State<TYield, TReturn, TNext>
+		state: State<TYield, TReturn, TNext>,
 	) => OpTuple<TYield, TReturn> | void;
 
 	interface State<TYield, TReturn = any, TNext = any> {
@@ -138,39 +138,19 @@ export namespace __generator {
 }
 export function __generator<T, TYield, TReturn = any, TNext = any>(
 	thisArg: T,
-	body: __generator.Body<T, TYield, TReturn, TNext>
+	body: __generator.Body<T, TYield, TReturn, TNext>,
 ): Generator<TYield, TReturn, TNext>;
 
 export function __await<V>(v: V): V extends __await<infer VInner> ? __await<VInner> : __await<V>;
-export namespace __await {
-	/**
-	 * Used as a workaround because of the lack of proper nominal types.
-	 *
-	 * Doesn't actually exist during runtime.
-	 */
-	const __nominal__: unique symbol;
-}
-export interface __await<V> {
+export declare class __await<V> {
 	v: V;
-	readonly [__await.__nominal__]?: undefined;
+	constructor(v: V);
 }
 
-export function __asyncGenerator<
-	T,
-	A extends any[],
-	I extends Iterator<any, any, any>
->(
+export function __asyncGenerator<T, A extends any[], I extends Iterator<any, any, any>>(
 	thisArg: T,
-	_arguments:
-		| Readonly<A>
-		| ArrayLike<
-			A extends Array<infer T>
-				? never extends T
-					? any
-					: T
-				: any
-		>,
-	generator: (this: T, ...args: A) => I
-): I extends Generator<any>
-	? AsyncGenerator<any>
-	: AsyncIterableIterator<any>;
+	argsList:
+		| { readonly [K in Extract<keyof A, number | "length">]: A[K] }
+		| ArrayLike<unknown>,
+	generator: (this: T, ...args: A) => I,
+): I extends Generator<any> ? AsyncGenerator<any> : AsyncIterableIterator<any>;
