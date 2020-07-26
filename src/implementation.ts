@@ -1462,7 +1462,9 @@ define(WrapForValidAsyncIteratorPrototype, {
 			// prettier-ignore
 			const iterator: IteratorLike<any> | AsyncIteratorLike<any>
 				= SLOT.get(O, "[[AsyncIterated]]")["[[Iterator]]"];
-			const _throw = GetMethod(iterator, "throw");
+			const _throw:
+				| ((e?: unknown) => IteratorResult<any> | Promise<IteratorResult<any>>)
+				| undefined = GetMethod(iterator, "throw");
 			if (_throw === undefined) {
 				throw v;
 			}

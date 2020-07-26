@@ -3,7 +3,7 @@
 /node_modules/**
 
 # Compiled code:
-/implementation.js
+/implementation*.js
 
 # Unwanted crap
 .DS_Store

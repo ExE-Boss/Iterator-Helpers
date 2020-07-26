@@ -1,9 +1,10 @@
+export import IteratorLike = globalThis.Iterator;
 export abstract class Iterator<T, TReturn = any, TNext = unknown>
-	implements globalThis.Iterator<T, TReturn, TNext> {
-	static from<T, TReturn = any, TNext = unknown>(
-		O: globalThis.Iterator<T, TReturn, TNext>
-	): Iterator<T, TReturn, TNext>;
+	implements IteratorLike<T, TReturn, TNext> {
 	static from<T>(O: Iterable<T>): Iterator<T>;
+	static from<T, TReturn = any, TNext = unknown>(
+		O: IteratorLike<T, TReturn, TNext>
+	): Iterator<T, TReturn, TNext>;
 
 	// NOTE: 'next' is defined using a tuple to ensure we report the correct assignability errors in all places.
 	abstract next(...args: [] | [TNext]): IteratorResult<T, TReturn>;
@@ -38,12 +39,13 @@ export abstract class Iterator<T, TReturn = any, TNext = unknown>
 	[Symbol.iterator](): this;
 }
 
+export import AsyncIteratorLike = globalThis.AsyncIterator;
 export abstract class AsyncIterator<T, TReturn = any, TNext = unknown>
-	implements globalThis.AsyncIterator<T, TReturn, TNext> {
+	implements AsyncIteratorLike<T, TReturn, TNext> {
+	static from<T>(O: AsyncIterable<T> | Iterable<T>): AsyncIterator<T>;
 	static from<T, TReturn = any, TNext = unknown>(
-		O: globalThis.Iterator<T, TReturn, TNext> | globalThis.AsyncIterator<T, TReturn, TNext>
+		O: AsyncIteratorLike<T, TReturn, TNext> | IteratorLike<T, TReturn, TNext>
 	): AsyncIterator<T, TReturn, TNext>;
-	static from<T>(O: Iterable<T> | AsyncIterable<T>): AsyncIterator<T>;
 
 	abstract next(...args: [] | [TNext]): Promise<IteratorResult<T, TReturn>>;
 	return?(value: TReturn): Promise<IteratorResult<T, TReturn>>;

@@ -28,7 +28,7 @@
 	"overrides": [
 		{
 			"files": [
-				"implementation.js"
+				"implementation*.js"
 			],
 			"rules": {
 				"consistent-return": "off",
